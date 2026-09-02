@@ -1,0 +1,3 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {createSession,verifySession,createDownloadToken,verifyDownloadToken}=require('../server/crypto');
+test('session token verifies and tampering fails',()=>{const s=createSession('a'.repeat(32),60);assert.equal(verifySession('a'.repeat(32),s.cookie).id,s.id);assert.equal(verifySession('a'.repeat(32),s.cookie+'x'),null);});
+test('download token binds id and expiry',()=>{const id='123e4567-e89b-42d3-a456-426614174000',exp=new Date(Date.now()+60000).toISOString(),t=createDownloadToken('b'.repeat(32),id,exp);assert.equal(verifyDownloadToken('b'.repeat(32),id,t),true);assert.equal(verifyDownloadToken('b'.repeat(32),'223e4567-e89b-42d3-a456-426614174000',t),false);});

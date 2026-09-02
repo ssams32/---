@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>마음네컷 관리자 센터</title>
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Login Overlay -->
+  <section id="loginModal" class="modal-overlay">
+    <div class="login-card">
+      <div class="brand-badge">Admin Panel</div>
+      <h1>마음네컷 관리자</h1>
+      <p>포토부스 운영 및 배경 관리를 위해 비밀번호를 입력하세요.</p>
+      <form id="loginForm">
+        <input type="password" id="adminPass" placeholder="관리자 비밀번호" autocomplete="current-password" required>
+        <button type="submit" class="btn primary full" id="loginBtn">로그인</button>
+      </form>
+      <div id="loginError" class="error-msg" hidden></div>
+      <a href="/" class="back-link">← 포토부스로 돌아가기</a>
+    </div>
+  </section>
+
+  <!-- Admin Main Dashboard -->
+  <div id="adminApp" class="dashboard-wrap" hidden>
+    <header class="admin-header">
+      <div class="header-left">
+        <span class="logo-badge">마음네컷 관리자</span>
+        <span class="system-status" id="sysStatus">● 시스템 정상</span>
+      </div>
+      <div class="header-right">
+        <a href="/" class="btn ghost btn-sm" target="_blank">포토부스 열기 ↗</a>
+        <button id="logoutBtn" class="btn ghost btn-sm">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <!-- Tab Navigation -->
+      <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="themes">🎨 테마 & 특별 배경</button>
+        <button class="tab-btn" data-tab="branding">📝 문구 & 브랜딩</button>
+        <button class="tab-btn" data-tab="booth">⚙️ 부스 & 촬영 설정</button>
+        <button class="tab-btn" data-tab="stats">📊 운영 통계 & 관리</button>
+      </nav>
+
+      <!-- TAB 1: 테마 & 배경 관리 -->
+      <section id="tab-themes" class="tab-pane active">
+        <div class="section-card">
+          <h2>기본 테마 프리셋</h2>
+          <p class="desc">부스에서 기본으로 적용할 시그니처 테마를 선택하세요.</p>
+          <div id="themeGrid" class="theme-grid"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="card-header-flex">
+            <div>
+              <h2>특별 커스텀 배경 이미지</h2>
+              <p class="desc">행사 로고나 특별한 일러스트가 포함된 맞춤형 배경 이미지를 등록하세요.</p>
+            </div>
+            <button class="btn secondary" id="triggerUploadBtn">＋ 새 배경 추가</button>
+          </div>
+
+          <!-- Upload Box -->
+          <div id="uploadBox" class="upload-dropzone" hidden>
+            <input type="file" id="bgFileInput" accept="image/png,image/jpeg" hidden>
+            <div class="dropzone-content">
+              <div class="icon">🖼️</div>
+              <p>배경으로 사용할 <strong>PNG 또는 JPEG</strong> 이미지를 선택하거나 여기로 드래그하세요.</p>
+              <small>권장 해상도: 1200×1420 (2x2) 또는 1200×1800 (1x4 롱스트립), 최대 8MB</small>
+              <div class="upload-inputs">
+                <input type="text" id="bgNameInput" placeholder="배경 이름 (예: 2026 청소년 마음캠프)" maxlength="40">
+                <button type="button" class="btn primary btn-sm" id="confirmUploadBtn">업로드 적용</button>
+                <button type="button" class="btn ghost btn-sm" id="cancelUploadBtn">취소</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Backgrounds List -->
+          <div id="customBgList" class="custom-bg-grid"></div>
+          <div id="noCustomBg" class="empty-state">등록된 커스텀 배경이 없습니다. 위 버튼을 눌러 특별한 배경을 추가해 보세요!</div>
+        </div>
+      </section>
+
+      <!-- TAB 2: 문구 & 브랜딩 -->
+      <section id="tab-branding" class="tab-pane">
+        <div class="section-card form-card">
+          <h2>포토부스 텍스트 & 브랜딩</h2>
+          <p class="desc">부스 화면 및 최종 완성 사진에 인쇄되는 문구를 수정합니다.</p>
+          
+          <div class="form-group">
+            <label for="centerName">센터 / 기관명</label>
+            <input type="text" id="centerName" placeholder="마음건강복지센터" maxlength="30">
+            <small class="hint">시작 화면 상단 로고 뱃지에 표시됩니다.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="title">메인 타이틀</label>
+            <input type="text" id="title" placeholder="오늘의 마음 네컷" maxlength="30">
+            <small class="hint">사진 상단 헤더 영역에 인쇄되는 메인 제목입니다.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="message">하단 응원 문구</label>
+            <input type="text" id="message" placeholder="당신의 오늘을 응원합니다 ✨" maxlength="40">
+            <small class="hint">사진 하단 푸터 영역에 새겨지는 문구입니다.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="privacyNotice">안내 문구</label>
+            <input type="text" id="privacyNotice" placeholder="완성 사진은 다운로드를 위해 잠시 보관된 후 자동 삭제됩니다." maxlength="80">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn primary" id="saveBrandingBtn">문구 저장 적용</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: 부스 & 촬영 설정 -->
+      <section id="tab-booth" class="tab-pane">
+        <div class="section-card form-card">
+          <h2>촬영 & 프레임 규격 설정</h2>
+          <p class="desc">촬영 진행 방식 및 기본 레이아웃을 조절합니다.</p>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="defaultLayout">기본 프레임 레이아웃</label>
+              <select id="defaultLayout">
+                <option value="grid-2x2">클래식 2x2 (정사각형 네컷)</option>
+                <option value="strip-1x4">시그니처 1x4 (세로 롱스트립)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="countdownSeconds">촬영 카운트다운 (초)</label>
+              <select id="countdownSeconds">
+                <option value="3">3초 (추천)</option>
+                <option value="5">5초 (여유로운 포즈)</option>
+                <option value="7">7초</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="captureCount">연속 촬영 매수</label>
+              <select id="captureCount">
+                <option value="6">6장 촬영 후 4장 선택 (추천)</option>
+                <option value="8">8장 촬영 후 4장 선택</option>
+                <option value="4">4장 연속 즉시 촬영</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="betweenShotsMs">촬영 간격 (ms)</label>
+              <select id="betweenShotsMs">
+                <option value="750">0.75초 (기본)</option>
+                <option value="1000">1.0초</option>
+                <option value="1500">1.5초</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="stickersInput">스티커 이모지 세트 (쉼표로 구분)</label>
+            <input type="text" id="stickersInput" placeholder="💜, 😊, 🌿, ✨, 🌈, 🌸, ⭐, 🫶, ☁️, 🎈, 🍀, ❤️">
+          </div>
+
+          <div class="btn-row">
+            <button class="btn primary" id="saveBoothBtn">부스 설정 저장</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: 운영 통계 & 관리 -->
+      <section id="tab-stats" class="tab-pane">
+        <div class="section-card">
+          <h2>실시간 운영 현황</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-title">다운로드 준비 완료 사진</div>
+              <div class="stat-value" id="statReady">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">유효 다운로드 가능 사진</div>
+              <div class="stat-value highlight" id="statActive">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">만료 대기/정리 대상</div>
+              <div class="stat-value" id="statExpired">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h2>데이터 유지관리 (Cleanup)</h2>
+          <p class="desc">만료 시각이 지난 사진 데이터를 Supabase Storage 및 DB에서 즉시 영구 삭제합니다.</p>
+          <button class="btn danger" id="manualCleanupBtn">만료 데이터 즉시 정리 실행</button>
+          <div id="cleanupResult" class="cleanup-box" hidden></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/config.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

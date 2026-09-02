@@ -1,0 +1,3 @@
+const test=require('node:test');const assert=require('node:assert/strict');const sharp=require('sharp');const {validateAndNormalizeJpeg}=require('../server/image');
+test('valid jpeg is normalized and metadata stripped',async()=>{const input=await sharp({create:{width:800,height:600,channels:3,background:'#663399'}}).jpeg().withMetadata({comment:'secret'}).toBuffer();const out=await validateAndNormalizeJpeg(input);const meta=await sharp(out).metadata();assert.equal(meta.format,'jpeg');assert.ok(meta.width<=1600&&meta.height<=1600);assert.equal(meta.comments,undefined);});
+test('non jpeg is rejected',async()=>{await assert.rejects(()=>validateAndNormalizeJpeg(Buffer.from('not an image')));});

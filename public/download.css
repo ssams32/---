@@ -1,0 +1,154 @@
+/* ===================================================================
+   마음 네컷 | Mobile Photo Download Page Styles
+   Clean, Accessible, Private Mobile Interface
+   =================================================================== */
+
+:root {
+  --color-brand-primary: #FF4F87;
+  --color-brand-primary-hover: #EA3C73;
+  --color-brand-primary-soft: #FFE3EC;
+  --color-surface-light: #FFFDF9;
+  --color-surface-muted: #F5F1F7;
+  --color-text-primary: #211C29;
+  --color-text-secondary: #6E6875;
+  --color-border: #E5DEE9;
+  --color-error: #D93F64;
+  --radius-card: 24px;
+  --radius-btn: 16px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  font-family: var(--font-family);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.download-card {
+  width: min(520px, 100%);
+  background: var(--color-surface-light);
+  border-radius: var(--radius-card);
+  padding: 32px 24px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(33, 28, 41, 0.08);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.download-brand-title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.download-status-badge {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-muted);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.download-preview-wrap {
+  width: 100%;
+  max-width: 380px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(33, 28, 41, 0.12);
+  border: 1px solid var(--color-border);
+  background: #fff;
+}
+
+.download-preview-wrap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 55dvh;
+  object-fit: contain;
+}
+
+.download-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-download-main {
+  width: 100%;
+  height: 60px;
+  background: var(--color-brand-primary);
+  color: #ffffff;
+  border-radius: var(--radius-btn);
+  font-size: 19px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(255, 79, 135, 0.3);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn-download-main:hover:not(:disabled) {
+  background: var(--color-brand-primary-hover);
+}
+.btn-download-main:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-download-main:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-retry {
+  width: 100%;
+  height: 52px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.download-help-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+/* Expired / Error State */
+.expired-state-box {
+  padding: 24px;
+  border-radius: 16px;
+  background: #FFF5F7;
+  border: 1.5px solid var(--color-error);
+  text-align: center;
+}
+.expired-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-error);
+  margin-bottom: 8px;
+}
+.expired-desc {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}

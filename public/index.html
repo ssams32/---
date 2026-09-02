@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#FFFDF9">
+  <title>마음 네컷 | MAEUM FOUR CUTS</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Top Progress Rail (Hidden on landing) -->
+  <header class="kiosk-header hidden-header" id="kioskHeader">
+    <div class="brand-chip" id="logoBadge" title="운영자 관리 모드">
+      <span class="brand-chip-title">마음 네컷</span>
+      <span class="brand-chip-badge">PHOTO BOOTH</span>
+    </div>
+
+    <nav class="progress-rail" aria-label="촬영 단계 안내">
+      <div class="rail-step active" data-step="camera">
+        <span class="step-dot">1</span>
+        <span class="step-label">촬영</span>
+      </div>
+      <div class="rail-divider"></div>
+      <div class="rail-step" data-step="select">
+        <span class="step-dot">2</span>
+        <span class="step-label">사진 선택</span>
+      </div>
+      <div class="rail-divider"></div>
+      <div class="rail-step" data-step="edit">
+        <span class="step-dot">3</span>
+        <span class="step-label">꾸미기</span>
+      </div>
+      <div class="rail-divider"></div>
+      <div class="rail-step" data-step="result">
+        <span class="step-dot">4</span>
+        <span class="step-label">완성</span>
+      </div>
+    </nav>
+
+    <div class="header-tools">
+      <a href="/admin" class="admin-btn" title="관리자 센터" aria-label="관리자 센터">⚙</a>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- =============================================================
+         SCREEN 1: ATTRACT / LANDING
+         ============================================================= -->
+    <section id="start" class="screen active" aria-labelledby="landingTitle">
+      <div class="landing-container">
+        <!-- Left Copy & CTA -->
+        <div class="landing-copy-column">
+          <div class="center-chip">마음건강복지센터와 함께</div>
+          <h1 class="landing-title" id="landingTitle">오늘의 마음을<br><span class="highlight">네 컷</span>에 담아요</h1>
+          <p class="landing-subtitle">6장을 찍고 마음에 드는 4장을 골라<br>나만의 마음 네컷을 완성해 보세요.</p>
+          
+          <div class="landing-cta-box">
+            <button class="btn-start-oversized" id="startBtn">
+              <span class="shutter-dot"></span>
+              <span>화면을 터치해 시작하기</span>
+            </button>
+            <button class="btn-kiosk-secondary" id="demoBtn">
+              <span>🧪 샘플 사진으로 둘러보기</span>
+            </button>
+          </div>
+
+          <div class="privacy-badge-pill">
+            <span>🔒</span>
+            <span>이름·전화번호를 받지 않아요</span>
+          </div>
+        </div>
+
+        <!-- Right 4-Cut Realistic Preview Mockup -->
+        <div class="landing-visual-column" id="visualStartZone" title="터치하여 시작하기">
+          <div class="kiosk-mockup-frame">
+            <div class="mockup-header-text">오늘의 마음 네컷</div>
+            <div class="mockup-grid">
+              <div class="mockup-slot"><img src="/samples/shot_1.jpg" alt="샘플 사진 1"></div>
+              <div class="mockup-slot"><img src="/samples/shot_2.jpg" alt="샘플 사진 2"></div>
+              <div class="mockup-slot"><img src="/samples/shot_3.jpg" alt="샘플 사진 3"></div>
+              <div class="mockup-slot"><img src="/samples/shot_4.jpg" alt="샘플 사진 4"></div>
+            </div>
+            <div class="mockup-footer">당신의 오늘을 응원합니다 ✨</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         SCREEN 2: CAMERA PERMISSION & READY STATE
+         ============================================================= -->
+    <section id="permission" class="screen" aria-labelledby="permissionTitle">
+      <div class="permission-card">
+        <div class="permission-icon-circle">📷</div>
+        <h2 class="permission-title" id="permissionTitle">촬영 준비를 시작할게요</h2>
+        
+        <div class="permission-notes-list">
+          <div class="permission-note-item">
+            <span class="note-check">✓</span>
+            <span>전면 카메라만 사용해요</span>
+          </div>
+          <div class="permission-note-item">
+            <span class="note-check">✓</span>
+            <span>완성 전 사진은 이 iPad 안에서만 처리해요</span>
+          </div>
+          <div class="permission-note-item">
+            <span class="note-check">✓</span>
+            <span>완료 후 이전 화면의 사진은 자동으로 지워져요</span>
+          </div>
+        </div>
+
+        <div id="cameraErrorBox" class="camera-error-box" hidden>
+          <div class="error-heading">카메라를 켤 수 없습니다</div>
+          <div class="error-guidance">iPad 설정에서 Safari 카메라 권한을 허용한 뒤 다시 시도해 주세요.</div>
+        </div>
+
+        <div class="permission-actions">
+          <button class="btn-kiosk-secondary" id="permissionCancelBtn">처음으로</button>
+          <button class="btn-kiosk-primary" id="permissionStartBtn">카메라 켜기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         SCREEN 3: SHOOTING EXPERIENCE
+         ============================================================= -->
+    <section id="camera" class="screen" aria-label="사진 촬영 화면">
+      <div class="shooting-layout">
+        <!-- Camera Viewfinder Stage (72%) -->
+        <div class="camera-stage-pane">
+          <div class="viewfinder-kiosk-frame">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="viewfinder-guides">
+              <div class="vf-corner top-left"></div>
+              <div class="vf-corner top-right"></div>
+              <div class="vf-corner bottom-left"></div>
+              <div class="vf-corner bottom-right"></div>
+            </div>
+            <div id="flash"></div>
+          </div>
+        </div>
+
+        <!-- Shooting Status Column (28%) -->
+        <div class="shooting-status-pane">
+          <div class="status-header-block">
+            <div class="live-shot-badge"><span id="shotCount">1</span> / 6 촬영</div>
+            <div class="six-shot-track" id="shotTrack" aria-label="촬영 진행 상태">
+              <div class="shot-node current">1</div>
+              <div class="shot-node">2</div>
+              <div class="shot-node">3</div>
+              <div class="shot-node">4</div>
+              <div class="shot-node">5</div>
+              <div class="shot-node">6</div>
+            </div>
+          </div>
+
+          <div class="countdown-container">
+            <div id="countdown" aria-live="assertive">3</div>
+          </div>
+
+          <p class="shooting-instruction">렌즈를 바라보고 자연스럽게 포즈를 취해보세요!</p>
+
+          <div class="shooting-control-box">
+            <button class="btn-cancel-shot" id="cancelShootBtn">촬영 취소</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         SCREEN 4: FOUR-PHOTO SELECTION (SPLIT WORKSPACE)
+         ============================================================= -->
+    <section id="select" class="screen" aria-labelledby="selectHeading">
+      <div class="selection-split-layout">
+        <!-- Left: 6-Photo Selection Grid (57%) -->
+        <div class="selection-grid-pane">
+          <div class="selection-header">
+            <h2 id="selectHeading">마음에 드는 사진 4장을 순서대로 골라주세요</h2>
+            <p>터치한 순서대로 프레임에 배치됩니다 <span class="selection-count-badge" id="selectionCounterBadge">0 / 4 선택</span></p>
+          </div>
+
+          <div class="six-photo-grid" id="photoGrid" role="group" aria-label="촬영한 사진 6장"></div>
+        </div>
+
+        <!-- Right: Destination 4-Cut Frame Preview (43%) -->
+        <div class="selection-preview-pane">
+          <div class="destination-frame-mockup" id="destinationMockup">
+            <div class="dest-slot" data-slot="1"><span class="slot-number-tag">1</span></div>
+            <div class="dest-slot" data-slot="2"><span class="slot-number-tag">2</span></div>
+            <div class="dest-slot" data-slot="3"><span class="slot-number-tag">3</span></div>
+            <div class="dest-slot" data-slot="4"><span class="slot-number-tag">4</span></div>
+          </div>
+
+          <div class="selection-actions-dock">
+            <button class="btn-kiosk-secondary" id="retakeBtn">다시 촬영하기</button>
+            <button class="btn-kiosk-primary" id="editBtn" disabled>4장 선택 완료 ›</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         SCREEN 5: DECORATION EDITOR
+         ============================================================= -->
+    <section id="edit" class="screen" aria-labelledby="editorHeading">
+      <div class="editor-split-layout">
+        <!-- Left: Large 4-Cut Editor Workspace (64%) -->
+        <div class="editor-workspace-pane">
+          <div id="stripPreview" class="stripPreview" aria-label="네 컷 사진 편집 영역"></div>
+        </div>
+
+        <!-- Right: Tool Panel (36%) -->
+        <div class="editor-tool-pane">
+          <div>
+            <div class="frame-theme-bar">
+              <span class="theme-bar-label">프레임 테마:</span>
+              <div class="theme-chips-row" id="themeSelector" role="radiogroup" aria-label="프레임 색상 선택"></div>
+            </div>
+
+            <div class="active-target-banner" id="activePhotoLabel">사진을 터치하여 스티커를 부착하세요</div>
+
+            <!-- Sticker Category Tabs -->
+            <div class="sticker-category-tabs" id="stickerCategoryTabs" role="tablist"></div>
+
+            <!-- Sticker Items Tray (60 stickers) -->
+            <div class="sticker-tray-grid" id="stickers" role="tabpanel"></div>
+
+            <!-- Selected Sticker Controls -->
+            <div class="sticker-controls-bar">
+              <button id="smaller" class="btn-sticker-tool" title="스티커 크기 축소">작게 −</button>
+              <button id="rotate" class="btn-sticker-tool" title="스티커 회전">회전 ↻</button>
+              <button id="bigger" class="btn-sticker-tool" title="스티커 크기 확대">크게 ＋</button>
+              <button id="deleteSticker" class="btn-sticker-tool btn-delete" title="선택한 스티커 삭제">삭제 ✕</button>
+            </div>
+          </div>
+
+          <!-- Bottom Finish Action Dock -->
+          <div class="editor-footer-dock">
+            <button class="btn-kiosk-secondary" id="backSelectBtn">‹ 사진 다시 선택</button>
+            <button class="btn-kiosk-primary" id="finishBtn">마음 네컷 완성하기 ›</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         SCREEN 6: COMPOSING & UPLOADING
+         ============================================================= -->
+    <section id="composing" class="screen" aria-live="polite">
+      <div class="composing-card">
+        <div class="composing-spinner"></div>
+        <h2 style="font-size: 26px; font-weight: 900;">마음 네컷을 완성하고 있어요</h2>
+        
+        <div class="composing-stages-list">
+          <div class="stage-item current" id="stage1">
+            <span class="stage-icon">⏳</span>
+            <span>사진을 한 장으로 합치고 있어요</span>
+          </div>
+          <div class="stage-item" id="stage2">
+            <span class="stage-icon">🔒</span>
+            <span>안전한 보관함에 잠시 저장하고 있어요</span>
+          </div>
+          <div class="stage-item" id="stage3">
+            <span class="stage-icon">📱</span>
+            <span>다운로드 QR을 만들고 있어요</span>
+          </div>
+        </div>
+
+        <div id="uploadErrorBox" class="camera-error-box" hidden>
+          <div class="error-heading">저장 중 문제가 발생했습니다</div>
+          <div class="error-guidance" id="uploadErrorMsg">네트워크 상태를 확인한 후 다시 시도해 주세요.</div>
+          <div style="display:flex; gap:10px; margin-top:14px;">
+            <button class="btn-kiosk-secondary" id="uploadRetryBtn">다시 시도</button>
+            <button class="btn-kiosk-secondary" id="uploadCancelBtn">처음으로</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         SCREEN 7: COMPLETION & QR
+         ============================================================= -->
+    <section id="result" class="screen" aria-labelledby="resultHeading">
+      <div class="result-spatial-layout">
+        <!-- Left: Completed Photo Canvas (58%) -->
+        <div class="result-photo-pane">
+          <canvas id="finalCanvas"></canvas>
+        </div>
+
+        <!-- Right: QR & Action Card (42%) -->
+        <div class="result-action-pane">
+          <div class="celebration-pill">PHOTO READY 🎉</div>
+          <h2 class="result-heading" id="resultHeading">마음 네컷 완성!</h2>
+          <p class="result-subtext">휴대전화 기본 카메라로 QR을 스캔해<br>사진을 안전하게 저장하세요.</p>
+
+          <div class="qr-display-frame">
+            <img id="qr" alt="사진 다운로드 QR 코드">
+          </div>
+
+          <p class="expiration-notice-text">다운로드는 설정된 시간 동안만 가능하며,<br>사진은 만료 후 자동 삭제됩니다.</p>
+
+          <div class="reset-warning-banner" id="resetWarningBanner">
+            <span id="resetSecondsText">15초</span> 후 처음 화면으로 자동 초기화됩니다.
+          </div>
+
+          <div class="result-btn-row">
+            <button class="btn-kiosk-secondary" id="restartBtn">처음으로</button>
+            <a id="directDownload" class="btn-kiosk-primary" download>이 iPad에서 확인하기</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <canvas id="captureCanvas" hidden></canvas>
+  <script src="/config.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

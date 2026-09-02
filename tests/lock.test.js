@@ -1,0 +1,2 @@
+const test=require('node:test');const assert=require('node:assert/strict');const {acquire,release}=require('../server/lock');
+test('lock is owner-safe',async()=>{let value=null;const redis={set:async(k,v,o)=>{if(value&&o.nx)return null;value=v;return 'OK';},eval:async(script,keys,args)=>{if(value===args[0]){value=null;return 1;}return 0;}};assert.equal(await acquire(redis,'k','owner-a',120),true);assert.equal(await release(redis,'k','owner-b'),0);assert.equal(value,'owner-a');assert.equal(await release(redis,'k','owner-a'),1);assert.equal(value,null);});
