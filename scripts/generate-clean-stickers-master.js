@@ -118,29 +118,23 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
   const isOuterBg = new Uint8Array(n);
   const queue = [];
 
-  // Background candidate: Bright background OR die-cut border grey outline
-  function isBgCandidate(r, g, b, a) {
-    if (a < 20) return true;
+  // ONLY true outer white background (brightness >= 244 and neutral diff <= 14)
+  function isOuterWhite(r, g, b) {
     const diff = Math.max(r, g, b) - Math.min(r, g, b);
     const brightness = (r + g + b) / 3;
-
-    // 1. Pure or bright white background
-    if (brightness >= 215 && diff <= 28) return true;
-    // 2. Die-cut grey outline (low saturation grey between 130 and 215)
-    if (brightness >= 130 && brightness < 215 && diff <= 16) return true;
-    return false;
+    return brightness >= 244 && diff <= 14;
   }
 
-  // 1. Seed boundary pixels
+  // 1. Seed boundary pixels from 4 edges
   for (let x = 0; x < width; x++) {
     const iTop = (0 * width + x) * 4;
-    if (isBgCandidate(rawBuffer[iTop], rawBuffer[iTop + 1], rawBuffer[iTop + 2], rawBuffer[iTop + 3])) {
+    if (isOuterWhite(rawBuffer[iTop], rawBuffer[iTop + 1], rawBuffer[iTop + 2])) {
       isOuterBg[x] = 1;
       queue.push(x);
     }
     const idxBot = (height - 1) * width + x;
     const iBot = idxBot * 4;
-    if (!isOuterBg[idxBot] && isBgCandidate(rawBuffer[iBot], rawBuffer[iBot + 1], rawBuffer[iBot + 2], rawBuffer[iBot + 3])) {
+    if (!isOuterBg[idxBot] && isOuterWhite(rawBuffer[iBot], rawBuffer[iBot + 1], rawBuffer[iBot + 2])) {
       isOuterBg[idxBot] = 1;
       queue.push(idxBot);
     }
@@ -149,36 +143,36 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
   for (let y = 0; y < height; y++) {
     const idxLeft = y * width + 0;
     const iLeft = idxLeft * 4;
-    if (!isOuterBg[idxLeft] && isBgCandidate(rawBuffer[iLeft], rawBuffer[iLeft + 1], rawBuffer[iLeft + 2], rawBuffer[iLeft + 3])) {
+    if (!isOuterBg[idxLeft] && isOuterWhite(rawBuffer[iLeft], rawBuffer[iLeft + 1], rawBuffer[iLeft + 2])) {
       isOuterBg[idxLeft] = 1;
       queue.push(idxLeft);
     }
     const idxRight = y * width + (width - 1);
     const iRight = idxRight * 4;
-    if (!isOuterBg[idxRight] && isBgCandidate(rawBuffer[iRight], rawBuffer[iRight + 1], rawBuffer[iRight + 2], rawBuffer[iRight + 3])) {
+    if (!isOuterBg[idxRight] && isOuterWhite(rawBuffer[iRight], rawBuffer[iRight + 1], rawBuffer[iRight + 2])) {
       isOuterBg[idxRight] = 1;
       queue.push(idxRight);
     }
   }
 
-  // 2. 8-direction BFS flood-fill outer background & die-cut margin
+  // 2. 4-way BFS flood-fill (4-way prevents diagonal leaks into thin outlines!)
   let head = 0;
-  const dx = [1, -1, 0, 0, 1, -1, 1, -1];
-  const dy = [0, 0, 1, -1, 1, 1, -1, -1];
+  const dx = [1, -1, 0, 0];
+  const dy = [0, 0, 1, -1];
 
   while (head < queue.length) {
     const curr = queue[head++];
     const cx = curr % width;
     const cy = Math.floor(curr / width);
 
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < 4; k++) {
       const nx = cx + dx[k];
       const ny = cy + dy[k];
       if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
         const nidx = ny * width + nx;
         if (!isOuterBg[nidx]) {
           const pi = nidx * 4;
-          if (isBgCandidate(rawBuffer[pi], rawBuffer[pi + 1], rawBuffer[pi + 2], rawBuffer[pi + 3])) {
+          if (isOuterWhite(rawBuffer[pi], rawBuffer[pi + 1], rawBuffer[pi + 2])) {
             isOuterBg[nidx] = 1;
             queue.push(nidx);
           }
@@ -187,83 +181,29 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     }
   }
 
-  // 3. Connected Components on foreground to isolate the single main character
-  const labels = new Int32Array(n);
-  let currentLabel = 0;
-  const componentSizes = [0];
+  // 3. Bottom text cutoff (only for English text at bottom 9% when hasBottomText is true)
+  const bottomCutoff = hasBottomText ? Math.floor(height * 0.91) : height;
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      if (isOuterBg[idx] === 0 && labels[idx] === 0) {
-        currentLabel++;
-        labels[idx] = currentLabel;
-        let size = 0;
-        const cq = [idx];
-        let cqHead = 0;
-
-        while (cqHead < cq.length) {
-          const curr = cq[cqHead++];
-          size++;
-          const cx = curr % width;
-          const cy = Math.floor(curr / width);
-
-          for (let k = 0; k < 8; k++) {
-            const nx = cx + dx[k];
-            const ny = cy + dy[k];
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-              const nidx = ny * width + nx;
-              if (isOuterBg[nidx] === 0 && labels[nidx] === 0) {
-                labels[nidx] = currentLabel;
-                cq.push(nidx);
-              }
-            }
-          }
-        }
-        componentSizes.push(size);
-      }
-    }
-  }
-
-  // Primary component
-  let bestLabel = 1;
-  let maxSize = 0;
-  for (let lbl = 1; lbl <= currentLabel; lbl++) {
-    if (componentSizes[lbl] > maxSize) {
-      maxSize = componentSizes[lbl];
-      bestLabel = lbl;
-    }
-  }
-
-  // Keep primary character component + attached or significant central items
-  const keepLabels = new Set([bestLabel]);
-  for (let lbl = 1; lbl <= currentLabel; lbl++) {
-    if (lbl === bestLabel) continue;
-    if (componentSizes[lbl] > maxSize * 0.04) {
-      keepLabels.add(lbl);
-    }
-  }
-
-  // Bottom cutoff for English text labels (0.88 * height)
-  const bottomCutoff = hasBottomText ? Math.floor(height * 0.88) : height;
-
-  // 4. Apply Transparency
+  // 4. Apply Transparency & edge anti-aliasing
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = y * width + x;
       const pi = idx * 4;
 
-      if (isOuterBg[idx] === 1 || !keepLabels.has(labels[idx]) || y >= bottomCutoff) {
+      if (isOuterBg[idx] === 1 || y >= bottomCutoff) {
         rawBuffer[pi + 3] = 0; // Transparent
       } else {
-        // Subtle edge anti-aliasing
+        // Character foreground - keep solid opaque!
+        rawBuffer[pi + 3] = 255;
+
+        // Subtle edge anti-aliasing on outer boundary
         let touchesVoid = false;
         for (let k = 0; k < 4; k++) {
           const nx = x + dx[k];
           const ny = y + dy[k];
           if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
             const nidx = ny * width + nx;
-            if (isOuterBg[nidx] === 1 || !keepLabels.has(labels[nidx]) || ny >= bottomCutoff) {
+            if (isOuterBg[nidx] === 1 || ny >= bottomCutoff) {
               touchesVoid = true;
               break;
             }
@@ -274,8 +214,8 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
           const g = rawBuffer[pi + 1];
           const b = rawBuffer[pi + 2];
           const brightness = (r + g + b) / 3;
-          if (brightness > 220) {
-            rawBuffer[pi + 3] = Math.round(Math.max(0, Math.min(255, (255 - brightness) * 4.2)));
+          if (brightness > 230) {
+            rawBuffer[pi + 3] = Math.round(Math.max(0, Math.min(255, (255 - brightness) * 6)));
           }
         }
       }
