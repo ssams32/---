@@ -1,19 +1,37 @@
 {
-  "$schema":"https://openapi.vercel.sh/vercel.json",
-  "version":2,
-  "functions":{"api/index.js":{"maxDuration":60,"memory":1024}},
-  "rewrites":[
-    {"source":"/api/:path*","destination":"/api/index.js"},
-    {"source":"/d/:path*","destination":"/api/index.js"}
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index.js" },
+    { "source": "/d/:path*", "destination": "/api/index.js" }
   ],
-  "headers":[
-    {"source":"/(.*)","headers":[
-      {"key":"Referrer-Policy","value":"no-referrer"},
-      {"key":"X-Content-Type-Options","value":"nosniff"},
-      {"key":"X-Frame-Options","value":"DENY"},
-      {"key":"Permissions-Policy","value":"camera=(self), microphone=(), geolocation=()"}
-    ]},
-    {"source":"/(index.html|config.js|app.js|download.js)","headers":[{"key":"Cache-Control","value":"private, no-store, max-age=0"}]}
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=()" }
+      ]
+    },
+    {
+      "source": "/(index.html|config.js|app.js|download.js)",
+      "headers": [
+        { "key": "Cache-Control", "value": "private, no-store, max-age=0" }
+      ]
+    }
   ],
-  "crons":[{"path":"/api/cleanup","schedule":"*/5 * * * *"}]
+  "crons": [
+    {
+      "path": "/api/cleanup",
+      "schedule": "0 18 * * *"
+    }
+  ]
 }
