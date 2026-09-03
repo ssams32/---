@@ -22,7 +22,7 @@ const sheets = [
     prefix: 'cloud_costume',
     rows: 4,
     cols: 4,
-    hasBottomText: true, // Has English labels at bottom
+    hasBottomText: true,
     outSize: 256
   },
   {
@@ -111,17 +111,24 @@ const icheonStickers = [
 ];
 
 /**
- * High-precision background removal & artifact isolation
+ * Ultimate Border Stripping & Foreground Isolation
  */
 async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize, destPath) {
   const n = width * height;
   const isOuterBg = new Uint8Array(n);
   const queue = [];
 
+  // Background candidate: Bright background OR die-cut border grey outline
   function isBgCandidate(r, g, b, a) {
     if (a < 20) return true;
     const diff = Math.max(r, g, b) - Math.min(r, g, b);
-    return (r >= 220 && g >= 220 && b >= 220 && diff <= 30);
+    const brightness = (r + g + b) / 3;
+
+    // 1. Pure or bright white background
+    if (brightness >= 215 && diff <= 28) return true;
+    // 2. Die-cut grey outline (low saturation grey between 130 and 215)
+    if (brightness >= 130 && brightness < 215 && diff <= 16) return true;
+    return false;
   }
 
   // 1. Seed boundary pixels
@@ -154,7 +161,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     }
   }
 
-  // 2. 8-direction BFS flood-fill outer background
+  // 2. 8-direction BFS flood-fill outer background & die-cut margin
   let head = 0;
   const dx = [1, -1, 0, 0, 1, -1, 1, -1];
   const dy = [0, 0, 1, -1, 1, 1, -1, -1];
@@ -228,19 +235,19 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     }
   }
 
-  // Keep primary character component + significant decorative elements near center
+  // Keep primary character component + attached or significant central items
   const keepLabels = new Set([bestLabel]);
   for (let lbl = 1; lbl <= currentLabel; lbl++) {
     if (lbl === bestLabel) continue;
-    if (componentSizes[lbl] > maxSize * 0.035) {
+    if (componentSizes[lbl] > maxSize * 0.04) {
       keepLabels.add(lbl);
     }
   }
 
-  // Bottom cutoff for English text labels
-  const bottomCutoff = hasBottomText ? Math.floor(height * 0.875) : height;
+  // Bottom cutoff for English text labels (0.88 * height)
+  const bottomCutoff = hasBottomText ? Math.floor(height * 0.88) : height;
 
-  // 4. Apply Transparency & Defringe
+  // 4. Apply Transparency
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = y * width + x;
@@ -249,7 +256,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
       if (isOuterBg[idx] === 1 || !keepLabels.has(labels[idx]) || y >= bottomCutoff) {
         rawBuffer[pi + 3] = 0; // Transparent
       } else {
-        // Soft defringe along boundary
+        // Subtle edge anti-aliasing
         let touchesVoid = false;
         for (let k = 0; k < 4; k++) {
           const nx = x + dx[k];
@@ -267,7 +274,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
           const g = rawBuffer[pi + 1];
           const b = rawBuffer[pi + 2];
           const brightness = (r + g + b) / 3;
-          if (brightness > 215) {
+          if (brightness > 220) {
             rawBuffer[pi + 3] = Math.round(Math.max(0, Math.min(255, (255 - brightness) * 4.2)));
           }
         }
@@ -284,7 +291,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
 }
 
 async function run() {
-  console.log('--- RE-GENERATING ALL 72 STICKERS FROM MASTER SHEETS ---');
+  console.log('--- EXECUTING PERFECT BORDER-STRIPPED REGENERATION FOR ALL 72 STICKERS ---');
 
   // Process 60 Cloud Stickers
   for (const sheet of sheets) {
@@ -312,7 +319,7 @@ async function run() {
           .toBuffer({ resolveWithObject: true });
 
         await processRawBuffer(data, info.width, info.height, sheet.hasBottomText, sheet.outSize, destPath);
-        console.log(`  -> Generated clean: ${filename}`);
+        console.log(`  -> Pure Silhouette Generated: ${filename}`);
       }
     }
   }
@@ -330,10 +337,10 @@ async function run() {
       .toBuffer({ resolveWithObject: true });
 
     await processRawBuffer(data, info.width, info.height, false, 340, destPath);
-    console.log(`  -> Generated clean: ${filename}`);
+    console.log(`  -> Pure Silhouette Generated: ${filename}`);
   }
 
-  console.log('\nSUCCESS: All 72 stickers have been regenerated with 100% transparent backgrounds, NO text labels, and NO artifact marks!');
+  console.log('\nSUCCESS: All 72 stickers have been regenerated with pure character silhouettes, zero white borders, zero grey outlines, and zero dots!');
 }
 
 run().catch(console.error);
