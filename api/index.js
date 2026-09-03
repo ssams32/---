@@ -232,7 +232,7 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     const token=createDownloadToken(cfg.downloadSecret,photoId,expiresAt);
     const proto=req.get('x-forwarded-proto')||(req.secure?'https':'http');
     const host=req.get('x-forwarded-host')||req.get('host')||'ichon-20th.vercel.app';
-    const baseUrl=(cfg.publicUrl&&!cfg.publicUrl.includes('localhost'))?cfg.publicUrl:`${proto}://${host}`;
+    const baseUrl=((cfg.publicUrl&&!cfg.publicUrl.includes('localhost'))?cfg.publicUrl:`${proto}://${host}`).trim();
     const pageUrl=`${baseUrl}/d/${photoId}#${token}`;
     const qr=await QRCode.toDataURL(pageUrl,{width:440,margin:2,errorCorrectionLevel:'M',color:{dark:'#121016',light:'#FFFFFF'}});
     await redis.set(usedKey,'1',{ex:900});
@@ -254,8 +254,12 @@ app.post('/api/photo/:id/exchange',async(req,res,next)=>{
     if(!validUuid(req.params.id))return res.status(404).json({error:'잘못된 사진 주소입니다.'});
     const parsed=parseDownloadToken(cfg.downloadSecret,req.params.id,bearer(req));
     if(!parsed)return res.status(404).json({error:'유효하지 않거나 만료된 다운로드 인증정보입니다.'});
-    const row=await record(req.params.id);
-    if(!row||new Date(row.expires_at).getTime()<=Date.now())return res.status(410).json({error:'다운로드 시간이 만료되었습니다.'});
+    let row=await record(req.params.id);
+    const expDate=new Date(parsed.exp*1000).toISOString();
+    if(!row){
+      row={photo_id:req.params.id,expires_at:expDate,storage_path:`photos/${new Date().toISOString().slice(0,10)}/${req.params.id}.jpg`,status:'ready'};
+    }
+    if(new Date(row.expires_at).getTime()<=Date.now())return res.status(410).json({error:'다운로드 시간이 만료되었습니다.'});
     const session=createDownloadSession(cfg.downloadSecret,req.params.id,row.expires_at);
     res.append('Set-Cookie',`pb_download=${encodeURIComponent(session.cookie)}; Path=/api/photo/${req.params.id}; HttpOnly; SameSite=Strict; Max-Age=${session.maxAge}${cfg.production?'; Secure':''}`);
     res.json({ok:true});

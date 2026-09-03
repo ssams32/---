@@ -21,8 +21,8 @@ function integer(name, fallback, min, max) {
 }
 
 function config() {
-  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '';
-  const publicUrl = (process.env.PUBLIC_URL || vercelUrl || 'http://localhost:3000').replace(/\/$/, '');
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.trim()}` : '';
+  const publicUrl = (process.env.PUBLIC_URL || vercelUrl || 'http://localhost:3000').trim().replace(/\/$/, '');
   const allowedOrigins = (process.env.ALLOWED_ORIGINS || publicUrl)
     .split(',').map((x) => x.trim().replace(/\/$/, '')).filter(Boolean);
 
