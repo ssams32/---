@@ -1025,25 +1025,36 @@
       await sleep(300);
 
       const localBlobUrl = URL.createObjectURL(blob);
+      state.completedBlob = blob;
+      state.localBlobUrl = localBlobUrl;
+
       const qrImg = $('#qr');
       const directDl = $('#directDownload');
 
       if (data && data.qr) {
         if (qrImg) qrImg.src = data.qr;
         if (directDl) {
-          directDl.href = data.pageUrl;
-          directDl.removeAttribute('download');
+          directDl.href = localBlobUrl;
+          directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
         }
       } else {
-        // Local Fallback Mode
-        if (qrImg) {
-          qrImg.src = localBlobUrl;
-          qrImg.style.objectFit = 'contain';
+        // Fallback: Generate real scannable QR Code using client-side QRCode library
+        const targetUrl = location.origin || 'https://ichon-20th.vercel.app';
+        if (window.QRCode && qrImg) {
+          try {
+            const qrDataUrl = await window.QRCode.toDataURL(targetUrl, {
+              width: 440,
+              margin: 2,
+              color: { dark: '#121016', light: '#FFFFFF' }
+            });
+            qrImg.src = qrDataUrl;
+          } catch {
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(targetUrl)}`;
+          }
         }
         if (directDl) {
           directDl.href = localBlobUrl;
-          directDl.setAttribute('download', `maeum-fourcuts-${Date.now()}.jpg`);
-          directDl.textContent = '💾 완성된 사진 기기에 저장하기';
+          directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
         }
       }
 
@@ -1152,6 +1163,58 @@
 
   // Screen 7: Result
   $('#restartBtn')?.addEventListener('click', resetKiosk);
+
+  // Photo Printer AirPrint Handler
+  $('#printBtn')?.addEventListener('click', () => {
+    const printArea = $('#printArea');
+    const canvas = $('#finalCanvas');
+    if (!printArea || !canvas) return;
+
+    printArea.replaceChildren();
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL('image/jpeg', 0.98);
+    img.alt = '인쇄용 네컷 사진';
+    printArea.appendChild(img);
+
+    showNotice('🖨️ 포토프린터 인쇄 대화상자를 준비합니다...');
+    setTimeout(() => {
+      window.print();
+    }, 250);
+  });
+
+  // Native AirDrop / Device Sharing Handler
+  $('#shareBtn')?.addEventListener('click', async () => {
+    const blob = state.completedBlob;
+    if (!blob) {
+      showNotice('공유할 사진이 없습니다.');
+      return;
+    }
+
+    try {
+      const file = new File([blob], `ichon-20th-fourcuts-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: '이천시정신건강복지센터 20주년 마음 네컷',
+          text: '이천시정신건강복지센터 20주년 기념 마음 네컷 사진이에요 ✨'
+        });
+        showNotice('사진이 성공적으로 공유되었습니다 🎉');
+      } else if (navigator.share) {
+        await navigator.share({
+          title: '이천시정신건강복지센터 20주년 마음 네컷',
+          url: location.href
+        });
+      } else {
+        $('#directDownload')?.click();
+        showNotice('기기에 직접 사진을 저장했습니다 💾');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.warn('Share error:', err);
+        $('#directDownload')?.click();
+      }
+    }
+  });
 
   // Admin secret gesture on logo (press & hold for 2.8 seconds)
   let logoTimer = null;

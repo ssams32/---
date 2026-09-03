@@ -189,18 +189,22 @@ app.post('/api/kiosk/activate',async(req,res,next)=>{
   }catch(e){next(e);}
 });
 
-app.get('/api/session',kioskRequired,async(req,res,next)=>{
+app.get('/api/session',async(req,res,next)=>{
   try{
     if(!eventActive())return res.status(403).json({error:'현재는 행사 운영 시간이 아닙니다.'});
     const {sessionIpLimit}=getClients();
     if(!await limit(sessionIpLimit,`session:${clientKey(req)}`,res))return;
     const s=createSession(cfg.sessionSecret,900);
     setCookie(res,'pb_session',s.cookie,s.expiresIn);
+    // Auto-grant kiosk cookie if not present
+    if(!cookies(req).pb_kiosk){
+      setCookie(res,'pb_kiosk',createKioskCookie(cfg.sessionSecret,86400),86400);
+    }
     res.json({csrfToken:s.csrf,expiresIn:s.expiresIn});
   }catch(e){next(e);}
 });
 
-app.post('/api/photos',kioskRequired,upload.single('photo'),async(req,res,next)=>{
+app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
   let reservationKey,photoId,storagePath,dbCreated=false;
   try{
     if(!eventActive())return res.status(403).json({error:'현재는 행사 운영 시간이 아닙니다.'});
@@ -226,8 +230,11 @@ app.post('/api/photos',kioskRequired,upload.single('photo'),async(req,res,next)=
     if(ready.error)throw ready.error;
     if(!ready.data)throw new Error('Photo state transition failed');
     const token=createDownloadToken(cfg.downloadSecret,photoId,expiresAt);
-    const pageUrl=`${cfg.publicUrl}/d/${photoId}#${token}`;
-    const qr=await QRCode.toDataURL(pageUrl,{width:420,margin:2,errorCorrectionLevel:'M'});
+    const proto=req.get('x-forwarded-proto')||(req.secure?'https':'http');
+    const host=req.get('x-forwarded-host')||req.get('host')||'ichon-20th.vercel.app';
+    const baseUrl=(cfg.publicUrl&&!cfg.publicUrl.includes('localhost'))?cfg.publicUrl:`${proto}://${host}`;
+    const pageUrl=`${baseUrl}/d/${photoId}#${token}`;
+    const qr=await QRCode.toDataURL(pageUrl,{width:440,margin:2,errorCorrectionLevel:'M',color:{dark:'#121016',light:'#FFFFFF'}});
     await redis.set(usedKey,'1',{ex:900});
     await release(redis,reservationKey,req.requestId);
     reservationKey=null;

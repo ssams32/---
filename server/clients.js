@@ -2,13 +2,23 @@ const { createClient } = require('@supabase/supabase-js');
 const { Redis } = require('@upstash/redis');
 const { Ratelimit } = require('@upstash/ratelimit');
 const { getConfig } = require('./config');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 let clients;
+
+const tmpDir = path.join(os.tmpdir(), 'maeum_fourcuts_storage');
+try { if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
 
 function createLocalMockClients(cfg) {
   const memoryDb = new Map();
   const memoryStorage = new Map();
   const memoryRedis = new Map();
+
+  function getDiskFile(key) {
+    return path.join(tmpDir, String(key).replace(/[^a-zA-Z0-9._-]/g, '_'));
+  }
 
   const mockRedis = {
     get: async (key) => memoryRedis.get(key) || null,
@@ -41,10 +51,24 @@ function createLocalMockClients(cfg) {
       return {
         insert: async (data) => {
           const row = Array.isArray(data) ? data[0] : data;
-          memoryDb.set(row.photo_id, { ...row, created_at: new Date().toISOString() });
+          const fullRow = { ...row, created_at: new Date().toISOString() };
+          memoryDb.set(row.photo_id, fullRow);
+          try { fs.writeFileSync(getDiskFile('db_' + row.photo_id), JSON.stringify(fullRow)); } catch {}
           return { data: row, error: null };
         },
         select: (cols, opts) => {
+          function getRow(id) {
+            if (memoryDb.has(id)) return memoryDb.get(id);
+            try {
+              const f = getDiskFile('db_' + id);
+              if (fs.existsSync(f)) {
+                const parsed = JSON.parse(fs.readFileSync(f, 'utf8'));
+                memoryDb.set(id, parsed);
+                return parsed;
+              }
+            } catch {}
+            return null;
+          }
           return {
             eq: (field, val) => {
               return {
@@ -176,18 +200,28 @@ function createLocalMockClients(cfg) {
     },
     storage: {
       from: (bucket) => ({
-        upload: async (path, buffer) => {
-          memoryStorage.set(path, buffer);
-          return { data: { path }, error: null };
+        upload: async (filePath, buffer) => {
+          memoryStorage.set(filePath, buffer);
+          try { fs.writeFileSync(getDiskFile('file_' + filePath), buffer); } catch {}
+          return { data: { path: filePath }, error: null };
         },
-        createSignedUrl: async (path, seconds, options) => {
-          const buf = memoryStorage.get(path);
+        createSignedUrl: async (filePath, seconds, options) => {
+          let buf = memoryStorage.get(filePath);
+          if (!buf) {
+            try {
+              const f = getDiskFile('file_' + filePath);
+              if (fs.existsSync(f)) buf = fs.readFileSync(f);
+            } catch {}
+          }
           if (!buf) return { data: null, error: new Error('Object not found') };
-          const mime = path.endsWith('.png') ? 'image/png' : 'image/jpeg';
+          const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
           return { data: { signedUrl: `data:${mime};base64,${buf.toString('base64')}` }, error: null };
         },
         remove: async (paths) => {
-          for (const p of paths) memoryStorage.delete(p);
+          for (const p of paths) {
+            memoryStorage.delete(p);
+            try { const f = getDiskFile('file_' + p); if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
+          }
           return { data: paths, error: null };
         }
       })

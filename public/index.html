@@ -7,6 +7,7 @@
   <title>이천시정신건강복지센터 20주년 | 마음 네컷 포토부스</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
   <!-- Top Progress Rail (Clean minimal studio bar) -->
@@ -306,26 +307,43 @@
         <div class="result-action-pane">
           <div class="celebration-pill">PHOTO READY 🎉</div>
           <h2 class="result-heading" id="resultHeading">마음 네컷 완성!</h2>
-          <p class="result-subtext">휴대전화 기본 카메라로 QR을 스캔해<br>사진을 안전하게 저장하세요.</p>
+          <p class="result-subtext">스마트폰 기본 카메라로 QR을 비추면<br>고화질 사진이 즉시 전송됩니다 📸</p>
 
           <div class="qr-display-frame">
             <img id="qr" alt="사진 다운로드 QR 코드">
           </div>
 
-          <p class="expiration-notice-text">다운로드는 설정된 시간 동안만 가능하며,<br>사진은 만료 후 자동 삭제됩니다.</p>
-
-          <div class="reset-warning-banner" id="resetWarningBanner">
-            <span id="resetSecondsText">15초</span> 후 처음 화면으로 자동 초기화됩니다.
+          <div class="qr-device-badge">
+            <span class="badge-icon">✓</span>
+            <span>아이폰 · 갤럭시(안드로이드) 모두 즉시 저장 가능</span>
           </div>
 
-          <div class="result-btn-row">
-            <button class="btn-kiosk-secondary" id="restartBtn">처음으로</button>
-            <a id="directDownload" class="btn-kiosk-primary" download>이 iPad에서 확인하기</a>
+          <div class="reset-warning-banner" id="resetWarningBanner">
+            <span id="resetSecondsText">20초</span> 후 다음 분을 위해 처음 화면으로 자동 초기화됩니다.
+          </div>
+
+          <!-- Main Actions: Photo Printer, Share, Download, Restart -->
+          <div class="result-btn-grid">
+            <button class="btn-action-highlight btn-print" id="printBtn">
+              <span class="btn-icon">🖨️</span>
+              <span>포토프린터로 인쇄하기</span>
+            </button>
+            <button class="btn-action-highlight btn-share" id="shareBtn">
+              <span class="btn-icon">📤</span>
+              <span>AirDrop / 기기 공유하기</span>
+            </button>
+            <div class="result-secondary-btn-row">
+              <button class="btn-kiosk-secondary" id="restartBtn">처음으로</button>
+              <a id="directDownload" class="btn-kiosk-secondary btn-ipad-save" download>이 기기에 저장</a>
+            </div>
           </div>
         </div>
       </div>
     </section>
   </main>
+
+  <!-- Photo Printer dedicated full-bleed print container -->
+  <div id="printArea" class="print-only" aria-hidden="true"></div>
 
   <canvas id="captureCanvas" hidden></canvas>
   <script src="/config.js"></script>
