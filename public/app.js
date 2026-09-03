@@ -1038,8 +1038,34 @@
           directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
         }
       } else {
-        // Fallback: Generate real scannable QR Code using client-side QRCode library
-        const targetUrl = location.origin || 'https://ichon-20th.vercel.app';
+        // Failover: Try client-side direct CDN upload
+        let clientCdnUrl = null;
+        try {
+          const reader = new FileReader();
+          const base64Promise = new Promise((resolve) => {
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(blob);
+          });
+          const b64 = await base64Promise;
+          const cdnForm = new FormData();
+          cdnForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
+          cdnForm.append('action', 'upload');
+          cdnForm.append('source', b64);
+          cdnForm.append('format', 'json');
+          const cRes = await fetch('https://freeimage.host/api/1/upload', { method: 'POST', body: cdnForm });
+          if (cRes.ok) {
+            const cData = await cRes.json();
+            clientCdnUrl = cData?.image?.url || null;
+          }
+        } catch (e) {
+          console.warn('Client direct CDN upload error:', e);
+        }
+
+        const fallbackPhotoId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `photo-${Date.now()}`;
+        const targetUrl = clientCdnUrl
+          ? `${location.origin}/d/${fallbackPhotoId}#img=${encodeURIComponent(clientCdnUrl)}`
+          : location.origin;
+
         if (window.QRCode && qrImg) {
           try {
             const qrDataUrl = await window.QRCode.toDataURL(targetUrl, {

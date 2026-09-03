@@ -10,7 +10,16 @@
   const expiredBox = document.getElementById('expiredBox');
 
   let currentPhotoBlob = null;
-  let token = location.hash.slice(1);
+  const hashRaw = location.hash.slice(1);
+  let directImgUrl = null;
+  let token = hashRaw;
+
+  if (hashRaw.includes('img=')) {
+    const params = new URLSearchParams(hashRaw);
+    directImgUrl = params.get('img');
+    token = params.get('t') || '';
+  }
+
   // Clean fragment from address bar
   history.replaceState(null, '', `/d/${encodeURIComponent(id)}`);
 
@@ -39,6 +48,21 @@
   async function loadPreview() {
     retryBtn.hidden = true;
     if (expiredBox) expiredBox.hidden = true;
+
+    // Fast-path: If directImgUrl is passed in hash, load immediately without server dependency!
+    if (directImgUrl) {
+      statusEl.textContent = '사진이 준비되었습니다 ✨ 아래 버튼을 눌러 저장하세요!';
+      photo.src = directImgUrl;
+      photoWrap.hidden = false;
+      saveBtn.hidden = false;
+      try {
+        const bRes = await fetch(directImgUrl);
+        currentPhotoBlob = await bRes.blob();
+      } catch (e) {
+        console.warn('Direct blob fetch error:', e);
+      }
+      return;
+    }
 
     try {
       statusEl.textContent = '사진을 안전하게 불러오는 중입니다...';

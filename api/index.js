@@ -228,18 +228,39 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     if(stored.error)throw stored.error;
     const ready=await supabase.from('photo_downloads').update({status:'ready'}).eq('photo_id',photoId).eq('status','pending').select('photo_id').maybeSingle();
     if(ready.error)throw ready.error;
-    if(!ready.data)throw new Error('Photo state transition failed');
+    let cdnUrl = null;
+    try {
+      const cdnForm = new FormData();
+      cdnForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
+      cdnForm.append('action', 'upload');
+      cdnForm.append('source', normalized.toString('base64'));
+      cdnForm.append('format', 'json');
+
+      const cdnRes = await fetch('https://freeimage.host/api/1/upload', {
+        method: 'POST',
+        body: cdnForm,
+        signal: AbortSignal.timeout(6000)
+      });
+      if (cdnRes.ok) {
+        const cdnData = await cdnRes.json();
+        cdnUrl = cdnData?.image?.url || null;
+      }
+    } catch (cdnErr) {
+      console.warn('Free CDN upload fallback:', cdnErr.message);
+    }
+
     const token=createDownloadToken(cfg.downloadSecret,photoId,expiresAt);
     const proto=req.get('x-forwarded-proto')||(req.secure?'https':'http');
     const host=req.get('x-forwarded-host')||req.get('host')||'ichon-20th.vercel.app';
     const baseUrl=((cfg.publicUrl&&!cfg.publicUrl.includes('localhost'))?cfg.publicUrl:`${proto}://${host}`).trim();
-    const pageUrl=`${baseUrl}/d/${photoId}#${token}`;
+    const hashData = cdnUrl ? `img=${encodeURIComponent(cdnUrl)}&t=${token}` : token;
+    const pageUrl=`${baseUrl}/d/${photoId}#${hashData}`;
     const qr=await QRCode.toDataURL(pageUrl,{width:440,margin:2,errorCorrectionLevel:'M',color:{dark:'#121016',light:'#FFFFFF'}});
     await redis.set(usedKey,'1',{ex:900});
     await release(redis,reservationKey,req.requestId);
     reservationKey=null;
     log.info('photo_created',{requestId:req.requestId,photoRef:hmacRef(cfg.rateLimitHashSecret,photoId,12),bytes:normalized.length});
-    res.status(201).json({photoId,pageUrl,qr,expiresAt});
+    res.status(201).json({photoId,pageUrl,qr,expiresAt,cdnUrl});
   }catch(e){
     const {supabase,redis}=getClients();
     if(storagePath){try{await supabase.storage.from(cfg.bucket).remove([storagePath]);}catch{}}
@@ -304,7 +325,7 @@ app.get('/api/photo/:id/download',downloadRequired,async(req,res,next)=>{
 
 app.get('/d/:id',(req,res)=>{
   if(!validUuid(req.params.id))return res.status(404).send('잘못된 사진 주소입니다.');
-  res.type('html').send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>마음 네컷 다운로드</title><link rel="stylesheet" href="/download.css"></head><body><main class="download-card" data-photo-id="${req.params.id}"><h1 class="download-brand-title">마음 네컷</h1><div id="status" class="download-status-badge" aria-live="polite">사진을 안전하게 불러오는 중입니다...</div><div id="photoWrap" class="download-preview-wrap" hidden><img id="photo" alt="완성된 마음 네컷"></div><div class="download-actions"><button id="save" class="btn-download-main" hidden>사진 저장하기</button><button id="retry" class="btn-retry" hidden>다시 시도</button></div><p class="download-help-text">저장 화면이 열리면 공유 버튼을 누른 뒤<br>‘이미지 저장’을 선택하세요.</p><div id="expiredBox" class="expired-state-box" hidden><div class="expired-title">다운로드 시간이 지났어요</div><div class="expired-desc">개인정보 보호를 위해 사진이 만료되었거나 삭제되었습니다.</div></div></main><script src="/download.js"></script></body></html>`);
+  res.type('html').send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>이천시 20주년 마음 네컷 다운로드</title><link rel="stylesheet" href="/download.css?v=4.3.2"></head><body><main class="download-card" data-photo-id="${req.params.id}"><h1 class="download-brand-title">이천시 20주년 마음 네컷 ✨</h1><div id="status" class="download-status-badge" aria-live="polite">사진을 안전하게 불러오는 중입니다...</div><div id="photoWrap" class="download-preview-wrap" hidden><img id="photo" alt="완성된 마음 네컷"></div><div class="download-actions"><button id="save" class="btn-download-main" hidden>📲 사진 저장하기</button><button id="retry" class="btn-retry" hidden>다시 시도</button></div><p class="download-help-text">💡 팁: 위 사진을 1초간 꾹 누른 뒤<br>‘사진 앱에 저장’을 누르셔도 바로 저장돼요!</p><div id="expiredBox" class="expired-state-box" hidden><div class="expired-title">다운로드 시간이 지났어요</div><div class="expired-desc">개인정보 보호를 위해 사진이 만료되었거나 삭제되었습니다.</div></div></main><script src="/download.js?v=4.3.2"></script></body></html>`);
 });
 
 async function runCleanup(requestId){
