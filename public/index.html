@@ -3,16 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#FFFDF9">
-  <title>마음 네컷 | MAEUM FOUR CUTS</title>
+  <meta name="theme-color" content="#121016">
+  <title>이천시정신건강복지센터 20주년 | 마음 네컷 포토부스</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- Top Progress Rail (Hidden on landing) -->
+  <!-- Top Progress Rail (Clean minimal studio bar) -->
   <header class="kiosk-header hidden-header" id="kioskHeader">
     <div class="brand-chip" id="logoBadge" title="운영자 관리 모드">
-      <span class="brand-chip-title">마음 네컷</span>
-      <span class="brand-chip-badge">PHOTO BOOTH</span>
+      <span class="brand-chip-title">이천시정신건강복지센터</span>
+      <span class="brand-chip-badge">20TH ANNIVERSARY</span>
     </div>
 
     <nav class="progress-rail" aria-label="촬영 단계 안내">
@@ -44,43 +45,54 @@
 
   <main id="app">
     <!-- =============================================================
-         SCREEN 1: ATTRACT / LANDING
+         SCREEN 1: ATTRACT / LANDING (STUDIO EDITORIAL)
          ============================================================= -->
     <section id="start" class="screen active" aria-labelledby="landingTitle">
       <div class="landing-container">
         <!-- Left Copy & CTA -->
         <div class="landing-copy-column">
-          <div class="center-chip">마음건강복지센터와 함께</div>
-          <h1 class="landing-title" id="landingTitle">오늘의 마음을<br><span class="highlight">네 컷</span>에 담아요</h1>
-          <p class="landing-subtitle">6장을 찍고 마음에 드는 4장을 골라<br>나만의 마음 네컷을 완성해 보세요.</p>
+          <div class="center-chip">
+            <span class="chip-point"></span>
+            <span>이천시정신건강복지센터 20주년 기념</span>
+          </div>
+          <h1 class="landing-title" id="landingTitle">오늘, 우리들의<br><span class="highlight">따뜻한 마음</span>을 담아요</h1>
+          <p class="landing-subtitle">자연스러운 표정으로 6장을 촬영하고<br>가장 빛나는 4장을 골라 나만의 네컷 사진을 완성하세요.</p>
           
           <div class="landing-cta-box">
             <button class="btn-start-oversized" id="startBtn">
-              <span class="shutter-dot"></span>
-              <span>화면을 터치해 시작하기</span>
+              <span class="shutter-icon-ring">
+                <span class="shutter-icon-dot"></span>
+              </span>
+              <span>터치하여 촬영 시작하기</span>
             </button>
             <button class="btn-kiosk-secondary" id="demoBtn">
-              <span>🧪 샘플 사진으로 둘러보기</span>
+              <span>샘플 사진으로 둘러보기</span>
             </button>
           </div>
 
           <div class="privacy-badge-pill">
-            <span>🔒</span>
-            <span>이름·전화번호를 받지 않아요</span>
+            <span class="lock-icon">🔒</span>
+            <span>개인정보(이름·연락처)를 수집하지 않는 안전한 포토부스입니다</span>
           </div>
         </div>
 
-        <!-- Right 4-Cut Realistic Preview Mockup -->
+        <!-- Right 4-Cut Authentic Studio Frame Mockup -->
         <div class="landing-visual-column" id="visualStartZone" title="터치하여 시작하기">
           <div class="kiosk-mockup-frame">
-            <div class="mockup-header-text">오늘의 마음 네컷</div>
+            <div class="mockup-top-bar">
+              <span class="mockup-brand-title">이천시정신건강복지센터 20주년</span>
+              <span class="mockup-brand-sub">MAEUEM FOUR CUTS</span>
+            </div>
             <div class="mockup-grid">
               <div class="mockup-slot"><img src="/samples/shot_1.jpg" alt="샘플 사진 1"></div>
               <div class="mockup-slot"><img src="/samples/shot_2.jpg" alt="샘플 사진 2"></div>
               <div class="mockup-slot"><img src="/samples/shot_3.jpg" alt="샘플 사진 3"></div>
               <div class="mockup-slot"><img src="/samples/shot_4.jpg" alt="샘플 사진 4"></div>
             </div>
-            <div class="mockup-footer">당신의 오늘을 응원합니다 ✨</div>
+            <div class="mockup-bottom-bar">
+              <span class="mockup-bottom-date">2026. 20th ANNIVERSARY</span>
+              <span class="mockup-bottom-msg">당신의 오늘을 늘 응원합니다</span>
+            </div>
           </div>
         </div>
       </div>

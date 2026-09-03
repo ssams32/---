@@ -862,15 +862,20 @@
     const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
 
     // Background Canvas Fill
-    ctx.fillStyle = theme.backgroundColor || '#FFFDF9';
+    ctx.fillStyle = theme.backgroundColor || '#FAF7F2';
     ctx.fillRect(0, 0, f.width, f.height);
 
-    // Header Branding Text
-    ctx.fillStyle = theme.headerColor || '#211C29';
+    // Header Branding Text (Clean Studio Typography)
+    ctx.fillStyle = theme.headerColor || '#1F1B24';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = '900 40px -apple-system, BlinkMacSystemFont, "Pretendard Variable", sans-serif';
-    ctx.fillText(CFG.brand?.title?.replace('\n', ' ') || '오늘의 마음 네컷', f.width / 2, f.headerHeight / 2 + 8);
+    ctx.font = '800 32px "Pretendard Variable", Pretendard, -apple-system, sans-serif';
+    ctx.letterSpacing = '1px';
+    ctx.fillText(CFG.brand?.centerName || '이천시정신건강복지센터 20주년', f.width / 2, f.headerHeight / 2 - 6);
+
+    ctx.font = '600 18px "Pretendard Variable", Pretendard, -apple-system, sans-serif';
+    ctx.fillStyle = theme.footerColor || '#726A7C';
+    ctx.fillText('MAEUM FOUR CUTS PHOTO BOOTH', f.width / 2, f.headerHeight / 2 + 24);
 
     // 2x2 Grid Layout Math
     const top = f.headerHeight + 20;
@@ -904,7 +909,7 @@
       const x = f.padding + col * (cellW + f.gap);
       const y = top + row * (cellH + f.gap);
 
-      // White Photo Frame Card
+      // White Photo Frame Card with subtle inner crispness
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(x, y, cellW, cellH);
 
@@ -952,12 +957,16 @@
       ctx.restore();
     }
 
-    // Footer Message and Date Stamp
-    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '. ');
-    ctx.fillStyle = theme.footerColor || '#6E6875';
-    ctx.font = '700 24px -apple-system, BlinkMacSystemFont, "Pretendard Variable", sans-serif';
+    // Footer Message and Date Stamp (Authentic studio photostrip style)
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    const footerY = f.height - f.footerHeight / 2;
+
+    ctx.fillStyle = theme.footerColor || '#726A7C';
+    ctx.font = '700 20px "Pretendard Variable", Pretendard, -apple-system, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`${todayStr} | ${CFG.brand?.completionMessage || '당신의 오늘을 응원합니다'}`, f.width / 2, f.height - f.footerHeight / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${dateStr}  ·  ${CFG.brand?.completionMessage || '이천시민의 마음건강 20년, 언제나 함께합니다 ✨'}`, f.width / 2, footerY);
 
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.94));
   }

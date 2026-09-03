@@ -170,60 +170,61 @@ window.PHOTO_BOOTH_CONFIG = {
   },
 
   // Color Theme Frames for customization
+  // Color Theme Frames for customization (Authentic Studio Presets)
   themes: {
     classic_light: {
       id: 'classic_light',
       name: '내추럴 크림',
-      backgroundColor: '#FFFDF9',
-      headerColor: '#211C29',
-      footerColor: '#6E6875',
-      borderColor: '#E5DEE9',
-      swatch: '#FFFDF9'
+      backgroundColor: '#FAF7F2',
+      headerColor: '#1F1B24',
+      footerColor: '#726A7C',
+      borderColor: '#E8E1D7',
+      swatch: '#FAF7F2'
     },
     chic_dark: {
       id: 'chic_dark',
-      name: '모던 차콜',
-      backgroundColor: '#17141D',
+      name: '모던 딥블랙',
+      backgroundColor: '#110F14',
       headerColor: '#FFFFFF',
-      footerColor: '#A29DB1',
-      borderColor: '#24202C',
-      swatch: '#17141D'
+      footerColor: '#9892A2',
+      borderColor: '#26222C',
+      swatch: '#110F14'
     },
     brand_pink: {
       id: 'brand_pink',
-      name: '로즈 핑크',
-      backgroundColor: '#FFE3EC',
-      headerColor: '#8E1D4A',
-      footerColor: '#B0356A',
-      borderColor: '#FFC5D8',
-      swatch: '#FF4F87'
+      name: '마음 핑크',
+      backgroundColor: '#FDECEF',
+      headerColor: '#361520',
+      footerColor: '#8C4D61',
+      borderColor: '#F8D1DB',
+      swatch: '#E85A7E'
     },
-    soft_yellow: {
-      id: 'soft_yellow',
-      name: '선샤인 옐로우',
-      backgroundColor: '#FFF3C4',
-      headerColor: '#6E4E00',
-      footerColor: '#8C6500',
-      borderColor: '#FFE28A',
-      swatch: '#FFC93C'
+    soft_navy: {
+      id: 'soft_navy',
+      name: '클래식 네이비',
+      backgroundColor: '#162238',
+      headerColor: '#FFFFFF',
+      footerColor: '#8DA4C4',
+      borderColor: '#2B3D5B',
+      swatch: '#162238'
     },
-    mint_breeze: {
-      id: 'mint_breeze',
-      name: '민트 브리즈',
-      backgroundColor: '#E0FAF1',
-      headerColor: '#0E5944',
-      footerColor: '#177A5E',
-      borderColor: '#BAF2E1',
-      swatch: '#5ED6B3'
+    sage_green: {
+      id: 'sage_green',
+      name: '세이지 그린',
+      backgroundColor: '#EFF5F1',
+      headerColor: '#1A3324',
+      footerColor: '#587363',
+      borderColor: '#D2E3D8',
+      swatch: '#4A7A5D'
     },
-    lilac_dream: {
-      id: 'lilac_dream',
-      name: '라일락 드림',
-      backgroundColor: '#EFEAFF',
-      headerColor: '#412B7D',
-      footerColor: '#5E41A8',
-      borderColor: '#D8CCFF',
-      swatch: '#8E72D8'
+    warm_butter: {
+      id: 'warm_butter',
+      name: '소프트 버터',
+      backgroundColor: '#FFF8E7',
+      headerColor: '#3A2E12',
+      footerColor: '#8C7748',
+      borderColor: '#F5E4B8',
+      swatch: '#F2CD6B'
     }
   },
 
