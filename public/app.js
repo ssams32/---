@@ -706,11 +706,26 @@
     const cell = node.parentElement;
     const baseW = cell ? (cell.clientWidth || 180) : 180;
     const baseH = cell ? (cell.clientHeight || 135) : 135;
-    const base = Math.min(baseW, baseH);
-    const size = Math.max(36, Math.round(base * model.scale));
+    const base = Math.max(150, Math.min(baseW, baseH));
+    const size = Math.max(36, Math.round(base * (model.scale || 0.35)));
 
-    node.style.width = `${size}px`;
-    node.style.height = `${size}px`;
+    const imgAsset = node.querySelector('.sticker-img-asset');
+    let width = size;
+    let height = size;
+
+    if (imgAsset && imgAsset.naturalWidth && imgAsset.naturalHeight) {
+      const aspect = imgAsset.naturalWidth / imgAsset.naturalHeight;
+      if (aspect >= 1) {
+        width = Math.round(size * aspect);
+        height = size;
+      } else {
+        width = size;
+        height = Math.round(size / aspect);
+      }
+    }
+
+    node.style.width = `${width}px`;
+    node.style.height = `${height}px`;
     node.style.left = `${model.x * 100}%`;
     node.style.top = `${model.y * 100}%`;
     node.style.transform = `translate(-50%, -50%) rotate(${model.rotation}rad)`;
@@ -760,7 +775,7 @@
 
       const cell = node.parentElement;
       const startY = e.clientY;
-      const startScale = model.scale;
+      const startScale = model.scale || 0.35;
 
       const onResize = (ev) => {
         const delta = (ev.clientY - startY) / (cell.clientHeight || 200);
@@ -799,8 +814,8 @@
     const model = list.find((x) => x.id === state.activeStickerId);
     if (!model) return;
 
-    if (action === 'bigger') model.scale = Math.min(0.65, model.scale + 0.05);
-    if (action === 'smaller') model.scale = Math.max(0.12, model.scale - 0.05);
+    if (action === 'bigger') model.scale = Math.min(0.65, (model.scale || 0.35) + 0.05);
+    if (action === 'smaller') model.scale = Math.max(0.12, (model.scale || 0.35) - 0.05);
     if (action === 'rotate') model.rotation += Math.PI / 12;
     if (action === 'delete') {
       const idx = list.indexOf(model);
@@ -839,6 +854,10 @@
 
     canvas.width = f.width;
     canvas.height = f.height;
+
+    // High quality canvas smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
 
@@ -896,9 +915,9 @@
 
       drawCover(ctx, img, x, y, cellW, cellH);
 
-      // Render Stickers on Photo
+      // Render Stickers on Photo with Aspect Ratio Preserved
       for (const st of ensureStickerList(photoId)) {
-        const size = Math.min(cellW, cellH) * st.scale;
+        const baseSize = Math.min(cellW, cellH) * (st.scale || 0.35);
         ctx.save();
         ctx.translate(x + st.x * cellW, y + st.y * cellH);
         ctx.rotate(st.rotation);
@@ -906,10 +925,22 @@
         if (st.type === 'image') {
           const stImg = stickerImageMap.get(st.value);
           if (stImg) {
-            ctx.drawImage(stImg, -size / 2, -size / 2, size, size);
+            const aspect = (stImg.naturalWidth && stImg.naturalHeight)
+              ? (stImg.naturalWidth / stImg.naturalHeight)
+              : 1;
+            let drawW = baseSize;
+            let drawH = baseSize;
+            if (aspect >= 1) {
+              drawW = baseSize * aspect;
+              drawH = baseSize;
+            } else {
+              drawW = baseSize;
+              drawH = baseSize / aspect;
+            }
+            ctx.drawImage(stImg, -drawW / 2, -drawH / 2, drawW, drawH);
           }
         } else {
-          ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+          ctx.font = `${baseSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(st.value || st.emoji, 0, 0);

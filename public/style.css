@@ -1018,7 +1018,12 @@ button:focus-visible, a:focus-visible {
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.22));
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 .sticker-node.selected {
   outline: 2.5px dashed var(--color-brand-primary);
