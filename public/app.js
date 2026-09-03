@@ -948,33 +948,55 @@
 
       // Stage 2: Uploading
       setStage(2);
-      await getSecuritySession();
 
-      const form = new FormData();
-      form.append('photo', blob, 'maeum-fourcuts.jpg');
+      let data = null;
+      try {
+        await getSecuritySession();
+        const form = new FormData();
+        form.append('photo', blob, 'maeum-fourcuts.jpg');
 
-      const res = await fetch('/api/photos', {
-        method: 'POST',
-        body: form,
-        headers: { 'X-CSRF-Token': state.csrf },
-        credentials: 'same-origin',
-        signal: state.abortController.signal
-      });
+        const res = await fetch('/api/photos', {
+          method: 'POST',
+          body: form,
+          headers: { 'X-CSRF-Token': state.csrf },
+          credentials: 'same-origin',
+          signal: state.abortController.signal
+        });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '사진 저장에 실패했습니다.');
+        if (res.ok) {
+          data = await res.json().catch(() => null);
+        }
+      } catch (e) {
+        console.warn('Cloud upload failed, using local canvas preview:', e);
+      }
+
       if (run !== state.runId) return;
 
-      // Stage 3: QR Preparation
+      // Stage 3: QR Preparation & Direct Download
       setStage(3);
       await sleep(300);
 
+      const localBlobUrl = URL.createObjectURL(blob);
       const qrImg = $('#qr');
-      if (qrImg) qrImg.src = data.qr;
       const directDl = $('#directDownload');
-      if (directDl) {
-        directDl.href = data.pageUrl;
-        directDl.removeAttribute('download');
+
+      if (data && data.qr) {
+        if (qrImg) qrImg.src = data.qr;
+        if (directDl) {
+          directDl.href = data.pageUrl;
+          directDl.removeAttribute('download');
+        }
+      } else {
+        // Local Fallback Mode
+        if (qrImg) {
+          qrImg.src = localBlobUrl;
+          qrImg.style.objectFit = 'contain';
+        }
+        if (directDl) {
+          directDl.href = localBlobUrl;
+          directDl.setAttribute('download', `maeum-fourcuts-${Date.now()}.jpg`);
+          directDl.textContent = '💾 완성된 사진 기기에 저장하기';
+        }
       }
 
       show('result');
