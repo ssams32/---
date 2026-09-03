@@ -126,7 +126,7 @@
          ============================================================= -->
     <section id="camera" class="screen" aria-label="사진 촬영 화면">
       <div class="shooting-layout">
-        <!-- Camera Viewfinder Stage (72%) -->
+        <!-- Camera Viewfinder Stage -->
         <div class="camera-stage-pane">
           <div class="viewfinder-kiosk-frame">
             <video id="video" autoplay playsinline muted></video>
@@ -136,14 +136,18 @@
               <div class="vf-corner bottom-left"></div>
               <div class="vf-corner bottom-right"></div>
             </div>
+            <!-- Large Floating Viewfinder Countdown for Mobile & Kiosk -->
+            <div class="vf-countdown-overlay" id="vfCountdownOverlay">
+              <span id="countdown">3</span>
+            </div>
             <div id="flash"></div>
           </div>
         </div>
 
-        <!-- Shooting Status Column (28%) -->
+        <!-- Shooting Status & Control Column -->
         <div class="shooting-status-pane">
           <div class="status-header-block">
-            <div class="live-shot-badge"><span id="shotCount">1</span> / 6 촬영</div>
+            <div class="live-shot-badge"><span id="shotCount">1</span> / 6 촬영 중</div>
             <div class="six-shot-track" id="shotTrack" aria-label="촬영 진행 상태">
               <div class="shot-node current">1</div>
               <div class="shot-node">2</div>
@@ -154,13 +158,12 @@
             </div>
           </div>
 
-          <div class="countdown-container">
-            <div id="countdown" aria-live="assertive">3</div>
-          </div>
-
-          <p class="shooting-instruction">렌즈를 바라보고 자연스럽게 포즈를 취해보세요!</p>
+          <p class="shooting-instruction">카메라 렌즈를 바라보고 예쁜 포즈를 취해보세요 ✨</p>
 
           <div class="shooting-control-box">
+            <button class="btn-shutter-circle" id="manualShutterBtn" aria-label="지금 바로 찰칵 촬영">
+              <span class="shutter-inner-dot">📸</span>
+            </button>
             <button class="btn-cancel-shot" id="cancelShootBtn">촬영 취소</button>
           </div>
         </div>

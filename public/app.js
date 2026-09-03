@@ -273,12 +273,13 @@
     });
   }
 
-  // Automated 6-Shot Shooting Sequence
+  // Automated 6-Shot Shooting Sequence with Manual Shutter Support
   async function startShootingSequence() {
     const run = state.runId;
     releaseShots();
     state.selected = [];
     state.stickers.clear();
+    state.skipCountdown = false;
 
     const totalShots = CFG.capture?.count || 6;
     const countdownSec = CFG.capture?.countdownSeconds || 3;
@@ -289,12 +290,16 @@
         if (run !== state.runId) return;
 
         // Update Progress UI
-        $('#shotCount').textContent = String(i + 1);
+        const shotCountEl = $('#shotCount');
+        if (shotCountEl) shotCountEl.textContent = String(i + 1);
         updateShotTrack(i, totalShots);
 
         // Countdown 3, 2, 1
+        state.skipCountdown = false;
         for (let sec = countdownSec; sec >= 1; sec--) {
           if (run !== state.runId) return;
+          if (state.skipCountdown) break;
+
           const cd = $('#countdown');
           if (cd) cd.textContent = String(sec);
           await sleep(650);
@@ -309,6 +314,9 @@
           void flash.offsetWidth;
           flash.classList.add('flash');
         }
+
+        const cd = $('#countdown');
+        if (cd) cd.textContent = '찰칵!';
 
         const blob = await captureVideoBlob();
         state.shots.push({ id: uid(), blob, url: URL.createObjectURL(blob) });
@@ -1075,6 +1083,9 @@
   $('#permissionCancelBtn')?.addEventListener('click', () => show('start'));
 
   // Screen 3: Camera
+  $('#manualShutterBtn')?.addEventListener('click', () => {
+    state.skipCountdown = true;
+  });
   $('#cancelShootBtn')?.addEventListener('click', () => {
     stopCamera();
     show('start');

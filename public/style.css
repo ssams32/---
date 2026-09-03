@@ -67,10 +67,6 @@ html, body {
   color: var(--color-text-primary);
   font-family: var(--font-family);
   -webkit-font-smoothing: antialiased;
-  padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
 }
 
 button {
@@ -91,8 +87,10 @@ button:focus-visible, a:focus-visible {
   top: 0;
   left: 0;
   width: 100%;
-  height: 76px;
-  padding: 0 36px;
+  height: calc(64px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
   background: var(--color-surface-light);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -100,6 +98,7 @@ button:focus-visible, a:focus-visible {
   justify-content: space-between;
   z-index: 100;
   transition: opacity 0.25s ease, transform 0.25s ease;
+  box-sizing: border-box;
 }
 
 .kiosk-header.hidden-header {
@@ -114,10 +113,11 @@ button:focus-visible, a:focus-visible {
   gap: 10px;
 }
 .brand-chip-title {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 900;
   letter-spacing: -0.5px;
   color: var(--color-text-primary);
+  white-space: nowrap;
 }
 .brand-chip-badge {
   font-size: 11px;
@@ -127,30 +127,32 @@ button:focus-visible, a:focus-visible {
   background: var(--color-brand-primary-soft);
   color: var(--color-brand-primary);
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .progress-rail {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .rail-step {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
+  gap: 6px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--color-text-secondary);
   transition: color 0.2s ease;
+  white-space: nowrap;
 }
 .rail-step .step-dot {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -173,7 +175,7 @@ button:focus-visible, a:focus-visible {
   box-shadow: 0 0 0 3px var(--color-brand-primary-soft);
 }
 .rail-divider {
-  width: 20px;
+  width: 14px;
   height: 2px;
   background: var(--color-border);
 }
@@ -205,7 +207,8 @@ button:focus-visible, a:focus-visible {
   display: none;
   opacity: 0;
   transition: opacity 280ms ease, transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
-  padding: 96px 40px 36px;
+  padding: calc(64px + env(safe-area-inset-top, 0px) + 16px) max(20px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
   overflow-y: auto;
 }
 .screen.active {
@@ -550,22 +553,24 @@ button:focus-visible, a:focus-visible {
    SCREEN 3: SHOOTING EXPERIENCE
    =================================================================== */
 #camera {
-  padding: 86px 36px 30px;
+  padding: calc(64px + env(safe-area-inset-top, 0px) + 12px) max(20px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
   background: var(--color-surface-dark);
+  box-sizing: border-box;
 }
 
 .shooting-layout {
   display: flex;
-  gap: 36px;
+  gap: 32px;
   max-width: 1380px;
   width: 100%;
   height: 100%;
   margin: auto;
   align-items: center;
+  justify-content: center;
 }
 
 .camera-stage-pane {
-  flex: 0 0 70%;
+  flex: 0 0 68%;
   height: 100%;
   display: flex;
   align-items: center;
@@ -594,7 +599,7 @@ button:focus-visible, a:focus-visible {
 /* Subtle Viewfinder Corner Guides */
 .viewfinder-guides {
   position: absolute;
-  inset: 24px;
+  inset: 20px;
   pointer-events: none;
 }
 .vf-corner {
@@ -609,12 +614,36 @@ button:focus-visible, a:focus-visible {
 .vf-corner.bottom-left { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 6px; }
 .vf-corner.bottom-right { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 6px; }
 
+/* Large Floating Viewfinder Countdown */
+.vf-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  z-index: 15;
+}
+.vf-countdown-overlay span {
+  font-size: clamp(84px, 18vw, 150px);
+  font-weight: 900;
+  color: #FFFFFF;
+  text-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 24px var(--color-brand-primary);
+  animation: vfCountPop 0.65s cubic-bezier(0.17, 0.89, 0.32, 1.28) infinite alternate;
+}
+@keyframes vfCountPop {
+  0% { transform: scale(0.85); opacity: 0.8; }
+  100% { transform: scale(1.15); opacity: 1; }
+}
+
 #flash {
   position: absolute;
   inset: 0;
   background: #ffffff;
   opacity: 0;
   pointer-events: none;
+  z-index: 20;
 }
 #flash.flash {
   animation: flashAnim 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
@@ -626,7 +655,7 @@ button:focus-visible, a:focus-visible {
 
 /* Shooting Status & Controls Column */
 .shooting-status-pane {
-  flex: 0 0 28%;
+  flex: 0 0 30%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -634,16 +663,17 @@ button:focus-visible, a:focus-visible {
   height: 100%;
   padding: 16px 0;
   text-align: center;
+  gap: 16px;
 }
 
 .status-header-block {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .live-shot-badge {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--color-text-inverse);
   letter-spacing: -0.5px;
@@ -652,7 +682,7 @@ button:focus-visible, a:focus-visible {
 /* 6-Shot Progress Track */
 .six-shot-track {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 .shot-node {
   width: 32px;
@@ -679,45 +709,56 @@ button:focus-visible, a:focus-visible {
   transform: scale(1.15);
 }
 
-/* Large Highly Visible Countdown */
-.countdown-container {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: var(--color-brand-secondary);
-  box-shadow: 0 12px 36px rgba(255, 201, 60, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-#countdown {
-  font-size: 96px;
-  font-weight: 900;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
 .shooting-instruction {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--color-brand-primary-soft);
+  line-height: 1.4;
 }
 
 .shooting-control-box {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
 }
+
+/* Prominent Circle Shutter Button */
+.btn-shutter-circle {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 6px solid var(--color-brand-primary);
+  box-shadow: 0 10px 30px rgba(255, 79, 135, 0.5), 0 0 0 4px rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.btn-shutter-circle:active {
+  transform: scale(0.92);
+  background: var(--color-brand-primary-soft);
+}
+.shutter-inner-dot {
+  font-size: 32px;
+  line-height: 1;
+}
+
 .btn-cancel-shot {
-  height: 52px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 46px;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-btn);
-  font-size: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
   font-weight: 700;
+  transition: background 0.2s ease;
 }
+.btn-cancel-shot:active { background: rgba(255, 255, 255, 0.25); }
 .btn-cancel-shot:hover { background: rgba(255, 255, 255, 0.18); }
 
 /* ===================================================================
@@ -1366,74 +1407,171 @@ button:focus-visible, a:focus-visible {
    RESPONSIVE KIOSK MODES (LANDSCAPE vs PORTRAIT)
    =================================================================== */
 
-/* Mode B: Portrait Kiosk (600px to 899px or portrait orientation) */
+/* ===================================================================
+   RESPONSIVE KIOSK & MOBILE MODES
+   =================================================================== */
+
 @media (max-width: 899px), (orientation: portrait) {
+  .kiosk-header {
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+  }
+  .brand-chip-title {
+    font-size: 16px;
+  }
+  .brand-chip-badge {
+    display: none;
+  }
+  .progress-rail {
+    gap: 6px;
+  }
+  .rail-step .step-label {
+    display: none;
+  }
+  .rail-divider {
+    width: 8px;
+  }
+
+  .screen {
+    padding: calc(56px + env(safe-area-inset-top, 0px) + 12px) max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+
   .landing-container {
     flex-direction: column-reverse;
     justify-content: center;
     text-align: center;
-    gap: 32px;
+    gap: 24px;
+    padding: 10px 0;
   }
   .landing-copy-column {
     align-items: center;
     flex: none;
   }
+  .landing-title {
+    font-size: clamp(32px, 8vw, 46px);
+  }
+  .landing-subtitle {
+    font-size: 16px;
+  }
+  .btn-start-oversized {
+    height: 64px;
+    font-size: 20px;
+  }
   .landing-visual-column {
     flex: none;
   }
   .kiosk-mockup-frame {
-    width: 280px;
-    height: 380px;
+    width: 260px;
+    height: 360px;
     transform: rotate(0deg);
   }
 
+  /* Camera Screen - Mobile Portrait Optimized */
+  #camera {
+    padding: calc(56px + env(safe-area-inset-top, 0px) + 6px) 16px calc(14px + env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
+  }
   .shooting-layout {
     flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    gap: 8px;
   }
   .camera-stage-pane {
-    flex: 0 0 65%;
+    flex: 1 1 auto;
     width: 100%;
+    max-height: 48dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .viewfinder-kiosk-frame {
+    width: 100%;
+    height: 100%;
+    max-height: 46dvh;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--radius-card);
   }
   .shooting-status-pane {
-    flex: 0 0 32%;
+    flex: 0 0 auto;
     width: 100%;
+    height: auto;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0 0;
+  }
+  .live-shot-badge {
+    font-size: 18px;
+  }
+  .shooting-instruction {
+    display: none;
+  }
+  .shooting-control-box {
     flex-direction: row;
-    justify-content: space-around;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+  }
+  .btn-shutter-circle {
+    width: 72px;
+    height: 72px;
+  }
+  .btn-cancel-shot {
+    height: 44px;
+    padding: 0 18px;
+    font-size: 13px;
   }
 
+  /* Selection Screen - Mobile Portrait */
   .selection-split-layout {
     flex-direction: column;
     overflow-y: auto;
+    gap: 16px;
   }
   .selection-preview-pane {
     flex: none;
     order: -1;
+    max-height: 220px;
   }
   .destination-frame-mockup {
-    max-height: 280px;
+    max-height: 160px;
+  }
+  .selection-grid-pane {
+    flex: none;
   }
 
+  /* Editor Screen - Mobile Portrait */
   .editor-split-layout {
     flex-direction: column;
     overflow-y: auto;
+    gap: 16px;
   }
   .editor-workspace-pane {
     flex: none;
-    height: 380px;
+    height: 320px;
   }
   .editor-tool-pane {
     flex: none;
   }
 
+  /* Result Screen - Mobile Portrait */
   .result-spatial-layout {
     flex-direction: column;
     overflow-y: auto;
+    gap: 20px;
   }
   .result-photo-pane {
     flex: none;
   }
+  #finalCanvas {
+    max-width: 280px;
+  }
   .result-action-pane {
     flex: none;
     width: 100%;
+    padding: 24px 16px;
   }
 }
