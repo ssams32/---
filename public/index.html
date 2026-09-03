@@ -3,14 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-  <meta name="theme-color" content="#121016">
+  <meta name="theme-color" content="#F6F2F7">
   <title>이천시정신건강복지센터 20주년 | 마음 네컷 포토부스</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="stylesheet" href="/style.css?v=4.3.2">
+  <link rel="stylesheet" href="/style.css?v=4.4.0">
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
-  <!-- Top Progress Rail (Clean minimal studio bar) -->
+  <!-- =============================================================
+       TOP PROGRESS RAIL (COMMERCIAL MINIMALIST)
+       ============================================================= -->
   <header class="kiosk-header hidden-header" id="kioskHeader">
     <div class="brand-chip" id="logoBadge" title="운영자 관리 모드">
       <span class="brand-chip-title">이천시정신건강복지센터</span>
@@ -46,53 +48,57 @@
 
   <main id="app">
     <!-- =============================================================
-         SCREEN 1: ATTRACT / LANDING (STUDIO EDITORIAL)
+         10. SCREEN 1: LANDING SCREEN (ASYMMETRICAL 42:58)
          ============================================================= -->
     <section id="start" class="screen active" aria-labelledby="landingTitle">
-      <div class="landing-container">
-        <!-- Left Copy & CTA -->
-        <div class="landing-copy-column">
-          <div class="center-chip">
-            <span class="chip-point"></span>
-            <span>이천시정신건강복지센터 20주년 기념</span>
+      <div class="landing-layout">
+        <!-- Left Column: 42% Identity, Headline, CTA, Privacy -->
+        <div class="landing-copy-pane">
+          <div class="center-chip-tag">
+            <span class="chip-dot-accent"></span>
+            <span>이천시정신건강복지센터 20주년 마음 네컷</span>
           </div>
-          <h1 class="landing-title" id="landingTitle">오늘, 우리들의<br><span class="highlight">따뜻한 마음</span>을 담아요</h1>
-          <p class="landing-subtitle">자연스러운 표정으로 6장을 촬영하고<br>가장 빛나는 4장을 골라 나만의 네컷 사진을 완성하세요.</p>
-          
-          <div class="landing-cta-box">
-            <button class="btn-start-oversized" id="startBtn">
-              <span class="shutter-icon-ring">
-                <span class="shutter-icon-dot"></span>
-              </span>
-              <span>터치하여 촬영 시작하기</span>
+
+          <h1 class="landing-headline-text" id="landingTitle">
+            오늘의 마음을<br><span class="highlight">네 컷</span>에 담아요
+          </h1>
+
+          <p class="landing-subtitle-text">
+            혼자서도 친구와도 편안하게 찍는<br>이천시민을 위한 셀프 마음 포토부스
+          </p>
+
+          <div class="landing-cta-row">
+            <button class="btn-cta-giant" id="startBtn">
+              <span class="shutter-pulsing-icon"></span>
+              <span>화면을 터치해 시작하기</span>
             </button>
             <button class="btn-kiosk-secondary" id="demoBtn">
               <span>샘플 사진으로 둘러보기</span>
             </button>
           </div>
 
-          <div class="privacy-badge-pill">
-            <span class="lock-icon">🔒</span>
-            <span>개인정보(이름·연락처)를 수집하지 않는 안전한 포토부스입니다</span>
+          <div class="privacy-reassurance-pill">
+            <span>✓</span>
+            <span>이름·전화번호를 받지 않아요</span>
           </div>
         </div>
 
-        <!-- Right 4-Cut Authentic Studio Frame Mockup -->
-        <div class="landing-visual-column" id="visualStartZone" title="터치하여 시작하기">
-          <div class="kiosk-mockup-frame">
-            <div class="mockup-top-bar">
-              <span class="mockup-brand-title">이천시정신건강복지센터 20주년</span>
-              <span class="mockup-brand-sub">MAEUEM FOUR CUTS</span>
+        <!-- Right Column: 58% Oversized Photostrip Frame Visual -->
+        <div class="landing-frame-pane" id="visualStartZone" title="터치하여 시작하기">
+          <div class="oversized-photostrip-mockup">
+            <div class="mockup-header-stamp">
+              <span>이천시정신건강복지센터 20주년</span>
+              <span>MAEUM FOUR CUTS</span>
             </div>
-            <div class="mockup-grid">
-              <div class="mockup-slot"><img src="/samples/shot_1.jpg" alt="샘플 사진 1"></div>
-              <div class="mockup-slot"><img src="/samples/shot_2.jpg" alt="샘플 사진 2"></div>
-              <div class="mockup-slot"><img src="/samples/shot_3.jpg" alt="샘플 사진 3"></div>
-              <div class="mockup-slot"><img src="/samples/shot_4.jpg" alt="샘플 사진 4"></div>
+            <div class="mockup-four-grid">
+              <div class="mockup-slot-item"><img src="/samples/shot_1.jpg" alt="샘플 사진 1"></div>
+              <div class="mockup-slot-item"><img src="/samples/shot_2.jpg" alt="샘플 사진 2"></div>
+              <div class="mockup-slot-item"><img src="/samples/shot_3.jpg" alt="샘플 사진 3"></div>
+              <div class="mockup-slot-item"><img src="/samples/shot_4.jpg" alt="샘플 사진 4"></div>
             </div>
-            <div class="mockup-bottom-bar">
-              <span class="mockup-bottom-date">2026. 20th ANNIVERSARY</span>
-              <span class="mockup-bottom-msg">당신의 오늘을 늘 응원합니다</span>
+            <div class="mockup-footer-stamp">
+              <span>2026. 20th ANNIVERSARY</span>
+              <span>당신의 오늘을 늘 응원합니다 ✨</span>
             </div>
           </div>
         </div>
@@ -100,34 +106,34 @@
     </section>
 
     <!-- =============================================================
-         SCREEN 2: CAMERA PERMISSION & READY STATE
+         SCREEN 2: CAMERA PERMISSION & PREPARATION
          ============================================================= -->
     <section id="permission" class="screen" aria-labelledby="permissionTitle">
-      <div class="permission-card">
-        <div class="permission-icon-circle">📷</div>
-        <h2 class="permission-title" id="permissionTitle">촬영 준비를 시작할게요</h2>
-        
-        <div class="permission-notes-list">
-          <div class="permission-note-item">
-            <span class="note-check">✓</span>
-            <span>전면 카메라만 사용해요</span>
+      <div class="permission-dialog-card">
+        <div class="permission-icon-badge">📷</div>
+        <h2 class="permission-heading" id="permissionTitle">촬영 준비를 시작할게요</h2>
+
+        <div class="permission-checklist">
+          <div class="permission-check-row">
+            <span class="check-green-pill">✓</span>
+            <span>전면 카메라로 총 6장을 연속 촬영해요</span>
           </div>
-          <div class="permission-note-item">
-            <span class="note-check">✓</span>
-            <span>완성 전 사진은 이 iPad 안에서만 처리해요</span>
+          <div class="permission-check-row">
+            <span class="check-green-pill">✓</span>
+            <span>완성 전 사진은 이 iPad 안에서만 안전하게 처리돼요</span>
           </div>
-          <div class="permission-note-item">
-            <span class="note-check">✓</span>
-            <span>완료 후 이전 화면의 사진은 자동으로 지워져요</span>
+          <div class="permission-check-row">
+            <span class="check-green-pill">✓</span>
+            <span>완료 후 이전 사진은 자동으로 지워져요</span>
           </div>
         </div>
 
         <div id="cameraErrorBox" class="camera-error-box" hidden>
-          <div class="error-heading">카메라를 켤 수 없습니다</div>
-          <div class="error-guidance">iPad 설정에서 Safari 카메라 권한을 허용한 뒤 다시 시도해 주세요.</div>
+          <strong>카메라를 켤 수 없습니다</strong><br>
+          설정에서 브라우저 카메라 권한을 허용한 뒤 다시 시도해 주세요.
         </div>
 
-        <div class="permission-actions">
+        <div class="permission-btn-row">
           <button class="btn-kiosk-secondary" id="permissionCancelBtn">처음으로</button>
           <button class="btn-kiosk-primary" id="permissionStartBtn">카메라 켜기</button>
         </div>
@@ -135,70 +141,76 @@
     </section>
 
     <!-- =============================================================
-         SCREEN 3: SHOOTING EXPERIENCE
+         11. SCREEN 3: CAMERA STAGE (72% CAMERA : 28% STATUS)
          ============================================================= -->
     <section id="camera" class="screen" aria-label="사진 촬영 화면">
-      <div class="shooting-layout">
-        <!-- Camera Viewfinder Stage -->
-        <div class="camera-stage-pane">
-          <div class="viewfinder-kiosk-frame">
+      <div class="camera-stage-layout">
+        <!-- Camera Viewfinder Stage: 72% -->
+        <div class="camera-viewfinder-pane">
+          <div class="camera-viewfinder-frame">
             <video id="video" autoplay playsinline muted></video>
-            <div class="viewfinder-guides">
-              <div class="vf-corner top-left"></div>
-              <div class="vf-corner top-right"></div>
-              <div class="vf-corner bottom-left"></div>
-              <div class="vf-corner bottom-right"></div>
-            </div>
-            <!-- Large Floating Viewfinder Countdown for Mobile & Kiosk -->
-            <div class="vf-countdown-overlay" id="vfCountdownOverlay">
-              <span id="countdown">3</span>
-            </div>
+            <div class="vf-corner top-left"></div>
+            <div class="vf-corner top-right"></div>
+            <div class="vf-corner bottom-left"></div>
+            <div class="vf-corner bottom-right"></div>
             <div id="flash"></div>
           </div>
         </div>
 
-        <!-- Shooting Status & Control Column -->
-        <div class="shooting-status-pane">
-          <div class="status-header-block">
-            <div class="live-shot-badge"><span id="shotCount">1</span> / 6 촬영 중</div>
-            <div class="six-shot-track" id="shotTrack" aria-label="촬영 진행 상태">
-              <div class="shot-node current">1</div>
-              <div class="shot-node">2</div>
-              <div class="shot-node">3</div>
-              <div class="shot-node">4</div>
-              <div class="shot-node">5</div>
-              <div class="shot-node">6</div>
-            </div>
+        <!-- Status & Countdown Panel: 28% -->
+        <div class="camera-status-pane">
+          <div class="status-shot-badge">
+            <span id="shotCount">1</span> / 6 촬영
           </div>
 
-          <p class="shooting-instruction">카메라 렌즈를 바라보고 예쁜 포즈를 취해보세요 ✨</p>
+          <!-- Giant 140px Countdown Circle -->
+          <div class="countdown-huge-wrapper" id="countdownBox">
+            <span id="countdown">3</span>
+          </div>
 
-          <div class="shooting-control-box">
-            <button class="btn-shutter-circle" id="manualShutterBtn" aria-label="지금 바로 찰칵 촬영">
-              <span class="shutter-inner-dot">📸</span>
+          <!-- 6-Node Progress Track: [●][●][◉][○][○][○] -->
+          <div class="six-node-track" id="shotTrack" aria-label="촬영 진행 상태">
+            <div class="node-dot current">1</div>
+            <div class="node-dot">2</div>
+            <div class="node-dot">3</div>
+            <div class="node-dot">4</div>
+            <div class="node-dot">5</div>
+            <div class="node-dot">6</div>
+          </div>
+
+          <p class="shooting-guide-text">카메라 렌즈를 바라보고<br>멋진 포즈를 취해보세요 ✨</p>
+
+          <div class="shooting-actions-box">
+            <button class="btn-shutter-kiosk" id="manualShutterBtn" aria-label="지금 바로 찰칵 촬영" title="지금 바로 촬영">
+              <span>📸</span>
             </button>
-            <button class="btn-cancel-shot" id="cancelShootBtn">촬영 취소</button>
+            <button class="btn-cancel-kiosk" id="cancelShootBtn">촬영 취소</button>
           </div>
         </div>
       </div>
     </section>
 
     <!-- =============================================================
-         SCREEN 4: FOUR-PHOTO SELECTION (SPLIT WORKSPACE)
+         12. SCREEN 4: PHOTO SELECTION (58% GRID : 42% LIVE PREVIEW)
          ============================================================= -->
     <section id="select" class="screen" aria-labelledby="selectHeading">
       <div class="selection-split-layout">
-        <!-- Left: 6-Photo Selection Grid (57%) -->
+        <!-- Left: 6-Photo Grid (58%) -->
         <div class="selection-grid-pane">
-          <div class="selection-header">
-            <h2 id="selectHeading">마음에 드는 사진 4장을 순서대로 골라주세요</h2>
-            <p>터치한 순서대로 프레임에 배치됩니다 <span class="selection-count-badge" id="selectionCounterBadge">0 / 4 선택</span></p>
+          <div>
+            <h2 class="selection-title-heading" id="selectHeading">
+              마음에 드는 사진 4장을<br>순서대로 골라주세요
+            </h2>
+            <div class="selection-sub-bar">
+              <span>터치한 순서대로 프레임에 배치됩니다</span>
+              <span class="selection-count-pill" id="selectionCounterBadge">0 / 4 선택</span>
+            </div>
           </div>
 
           <div class="six-photo-grid" id="photoGrid" role="group" aria-label="촬영한 사진 6장"></div>
         </div>
 
-        <!-- Right: Destination 4-Cut Frame Preview (43%) -->
+        <!-- Right: Destination 4-Cut Live Preview (42%) -->
         <div class="selection-preview-pane">
           <div class="destination-frame-mockup" id="destinationMockup">
             <div class="dest-slot" data-slot="1"><span class="slot-number-tag">1</span></div>
@@ -208,7 +220,7 @@
           </div>
 
           <div class="selection-actions-dock">
-            <button class="btn-kiosk-secondary" id="retakeBtn">다시 촬영하기</button>
+            <button class="btn-kiosk-secondary" id="retakeBtn">다시 촬영</button>
             <button class="btn-kiosk-primary" id="editBtn" disabled>4장 선택 완료 ›</button>
           </div>
         </div>
@@ -216,7 +228,7 @@
     </section>
 
     <!-- =============================================================
-         SCREEN 5: DECORATION EDITOR
+         13. SCREEN 5: STICKER EDITOR (64% WORKSPACE : 36% TOOL PANEL)
          ============================================================= -->
     <section id="edit" class="screen" aria-labelledby="editorHeading">
       <div class="editor-split-layout">
@@ -235,13 +247,13 @@
 
             <div class="active-target-banner" id="activePhotoLabel">사진을 터치하여 스티커를 부착하세요</div>
 
-            <!-- Sticker Category Tabs -->
+            <!-- Sticker Category Tabs (너우리 4종 + 20주년 탭) -->
             <div class="sticker-category-tabs" id="stickerCategoryTabs" role="tablist"></div>
 
-            <!-- Sticker Items Tray (60 stickers) -->
+            <!-- 62x62px Sticker Button Grid (72종 너우리 스티커 유지) -->
             <div class="sticker-tray-grid" id="stickers" role="tabpanel"></div>
 
-            <!-- Selected Sticker Controls -->
+            <!-- Sticker Manipulation Tool Bar -->
             <div class="sticker-controls-bar">
               <button id="smaller" class="btn-sticker-tool" title="스티커 크기 축소">작게 −</button>
               <button id="rotate" class="btn-sticker-tool" title="스티커 회전">회전 ↻</button>
@@ -250,7 +262,7 @@
             </div>
           </div>
 
-          <!-- Bottom Finish Action Dock -->
+          <!-- Bottom Footer Dock -->
           <div class="editor-footer-dock">
             <button class="btn-kiosk-secondary" id="backSelectBtn">‹ 사진 다시 선택</button>
             <button class="btn-kiosk-primary" id="finishBtn">마음 네컷 완성하기 ›</button>
@@ -260,31 +272,31 @@
     </section>
 
     <!-- =============================================================
-         SCREEN 6: COMPOSING & UPLOADING
+         SCREEN 6: COMPOSING & SPINNER
          ============================================================= -->
     <section id="composing" class="screen" aria-live="polite">
       <div class="composing-card">
         <div class="composing-spinner"></div>
-        <h2 style="font-size: 26px; font-weight: 900;">마음 네컷을 완성하고 있어요</h2>
-        
+        <h2 style="font-size: var(--font-size-title-lg); font-weight: var(--font-weight-extra-bold);">마음 네컷을 완성하고 있어요</h2>
+
         <div class="composing-stages-list">
           <div class="stage-item current" id="stage1">
-            <span class="stage-icon">⏳</span>
+            <span>⏳</span>
             <span>사진을 한 장으로 합치고 있어요</span>
           </div>
           <div class="stage-item" id="stage2">
-            <span class="stage-icon">🔒</span>
+            <span>🔒</span>
             <span>안전한 보관함에 잠시 저장하고 있어요</span>
           </div>
           <div class="stage-item" id="stage3">
-            <span class="stage-icon">📱</span>
+            <span>📱</span>
             <span>다운로드 QR을 만들고 있어요</span>
           </div>
         </div>
 
         <div id="uploadErrorBox" class="camera-error-box" hidden>
-          <div class="error-heading">저장 중 문제가 발생했습니다</div>
-          <div class="error-guidance" id="uploadErrorMsg">네트워크 상태를 확인한 후 다시 시도해 주세요.</div>
+          <div style="font-weight:bold; margin-bottom:4px;">저장 중 문제가 발생했습니다</div>
+          <div id="uploadErrorMsg">네트워크 상태를 확인한 후 다시 시도해 주세요.</div>
           <div style="display:flex; gap:10px; margin-top:14px;">
             <button class="btn-kiosk-secondary" id="uploadRetryBtn">다시 시도</button>
             <button class="btn-kiosk-secondary" id="uploadCancelBtn">처음으로</button>
@@ -294,47 +306,47 @@
     </section>
 
     <!-- =============================================================
-         SCREEN 7: COMPLETION & QR
+         14. SCREEN 7: COMPLETION (56% PHOTO : 44% QR & ACTIONS)
          ============================================================= -->
     <section id="result" class="screen" aria-labelledby="resultHeading">
       <div class="result-spatial-layout">
-        <!-- Left: Completed Photo Canvas (58%) -->
+        <!-- Left: Final Completed Photo Canvas (56%) -->
         <div class="result-photo-pane">
           <canvas id="finalCanvas"></canvas>
         </div>
 
-        <!-- Right: QR & Action Card (42%) -->
+        <!-- Right: QR & Action Card (44%) -->
         <div class="result-action-pane">
           <div class="celebration-pill">PHOTO READY 🎉</div>
           <h2 class="result-heading" id="resultHeading">마음 네컷 완성!</h2>
-          <p class="result-subtext">스마트폰 기본 카메라로 QR을 비추면<br>고화질 사진이 즉시 전송됩니다 📸</p>
+          <p class="result-subtext">스마트폰 카메라로 QR을 스캔해<br>사진을 안전하게 저장하세요 📸</p>
 
           <div class="qr-display-frame">
             <img id="qr" alt="사진 다운로드 QR 코드">
           </div>
 
           <div class="qr-device-badge">
-            <span class="badge-icon">✓</span>
+            <span>✓</span>
             <span>아이폰 · 갤럭시(안드로이드) 모두 즉시 저장 가능</span>
           </div>
 
           <div class="reset-warning-banner" id="resetWarningBanner">
-            <span id="resetSecondsText">20초</span> 후 다음 분을 위해 처음 화면으로 자동 초기화됩니다.
+            <span id="resetSecondsText">15초</span> 후 다음 분을 위해 처음 화면으로 자동 초기화됩니다.
           </div>
 
           <!-- Main Actions: Photo Printer, Share, Download, Restart -->
           <div class="result-btn-grid">
             <button class="btn-action-highlight btn-print" id="printBtn">
-              <span class="btn-icon">🖨️</span>
+              <span>🖨️</span>
               <span>포토프린터로 인쇄하기</span>
             </button>
             <button class="btn-action-highlight btn-share" id="shareBtn">
-              <span class="btn-icon">📤</span>
+              <span>📤</span>
               <span>AirDrop / 기기 공유하기</span>
             </button>
             <div class="result-secondary-btn-row">
               <button class="btn-kiosk-secondary" id="restartBtn">처음으로</button>
-              <a id="directDownload" class="btn-kiosk-secondary btn-ipad-save" download>이 기기에 저장</a>
+              <a id="directDownload" class="btn-kiosk-secondary" download>이 기기에 저장</a>
             </div>
           </div>
         </div>
@@ -346,7 +358,7 @@
   <div id="printArea" class="print-only" aria-hidden="true"></div>
 
   <canvas id="captureCanvas" hidden></canvas>
-  <script src="/config.js?v=4.3.2"></script>
-  <script src="/app.js?v=4.3.2"></script>
+  <script src="/config.js?v=4.4.0"></script>
+  <script src="/app.js?v=4.4.0"></script>
 </body>
 </html>

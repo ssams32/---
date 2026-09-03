@@ -91,6 +91,7 @@
       header?.classList.add('hidden-header');
     } else {
       header?.classList.remove('hidden-header');
+      header?.classList.toggle('shooting-mode', screenId === 'camera');
       updateProgressRail(screenId);
     }
 
@@ -310,9 +311,10 @@
         // Snapshot & Flash
         const flash = $('#flash');
         if (flash) {
-          flash.classList.remove('flash');
+          flash.classList.remove('active', 'flash');
           void flash.offsetWidth;
-          flash.classList.add('flash');
+          flash.classList.add('active', 'flash');
+          setTimeout(() => flash.classList.remove('active', 'flash'), 180);
         }
 
         const cd = $('#countdown');
@@ -342,7 +344,7 @@
     track.replaceChildren();
     for (let i = 0; i < total; i++) {
       const node = document.createElement('div');
-      node.className = 'shot-node' + (i < currentIdx ? ' done' : i === currentIdx ? ' current' : '');
+      node.className = 'node-dot shot-node' + (i < currentIdx ? ' done' : i === currentIdx ? ' current' : '');
       node.textContent = String(i + 1);
       track.append(node);
     }
@@ -422,8 +424,8 @@
       img.alt = `촬영 사진 ${index + 1}`;
 
       const badge = document.createElement('div');
-      badge.className = 'photo-order-badge';
-      badge.textContent = String(index + 1);
+      badge.className = 'selection-order-badge photo-order-badge';
+      badge.hidden = true;
 
       btn.append(img, badge);
       btn.addEventListener('click', () => togglePhotoSelection(shot.id));
@@ -460,14 +462,21 @@
     $$('#photoGrid .photo-card-item').forEach((card) => {
       const pid = card.dataset.photoId;
       const selIdx = state.selected.indexOf(pid);
-      const badge = card.querySelector('.photo-order-badge');
+      const badge = card.querySelector('.selection-order-badge') || card.querySelector('.photo-order-badge');
       if (selIdx >= 0) {
         card.setAttribute('aria-pressed', 'true');
-        if (badge) badge.textContent = String(selIdx + 1);
+        card.classList.add('selected');
+        if (badge) {
+          badge.hidden = false;
+          badge.textContent = String(selIdx + 1);
+        }
       } else {
         card.setAttribute('aria-pressed', 'false');
-        const origIdx = state.shots.findIndex((s) => s.id === pid);
-        if (badge) badge.textContent = String(origIdx + 1);
+        card.classList.remove('selected');
+        if (badge) {
+          badge.hidden = true;
+          badge.textContent = '';
+        }
       }
     });
   }
@@ -518,7 +527,7 @@
     Object.entries(CFG.themes || {}).forEach(([key, theme]) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `theme-chip-btn ${state.currentThemeId === key ? 'active' : ''}`;
+      btn.className = `theme-chip ${state.currentThemeId === key ? 'active' : ''}`;
       btn.style.backgroundColor = theme.swatch || theme.backgroundColor || '#FFFDF9';
       btn.title = theme.name || key;
       btn.setAttribute('aria-label', theme.name || key);
@@ -548,15 +557,27 @@
     const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
     preview.style.background = theme.backgroundColor || '#FFFDF9';
 
+    const grid = document.createElement('div');
+    grid.className = 'strip-grid-2x2';
+
     state.selected.forEach((photoId, index) => {
       const cell = document.createElement('div');
-      cell.className = `preview-cell ${photoId === state.activePhotoId ? 'active-photo' : ''}`;
+      const isActive = photoId === state.activePhotoId;
+      cell.className = `strip-slot preview-cell ${isActive ? 'active active-photo' : ''}`;
       cell.dataset.photoId = photoId;
 
       const img = document.createElement('img');
+      img.className = 'slot-photo';
       const shot = state.shots.find((s) => s.id === photoId);
       if (shot) img.src = shot.url;
       img.alt = `사진 ${index + 1}`;
+
+      if (isActive) {
+        const pill = document.createElement('div');
+        pill.className = 'active-slot-pill';
+        pill.textContent = '꾸미는 중';
+        cell.append(pill);
+      }
 
       cell.append(img);
       cell.addEventListener('pointerdown', (e) => {
@@ -564,10 +585,11 @@
           selectActivePhoto(photoId);
         }
       });
-      preview.append(cell);
-      renderPhotoStickers(photoId);
+      grid.append(cell);
     });
 
+    preview.append(grid);
+    state.selected.forEach((photoId) => renderPhotoStickers(photoId));
     updateActivePhotoBanner();
   }
 
@@ -582,7 +604,18 @@
     state.activePhotoId = photoId;
     state.activeStickerId = null;
     $$('.preview-cell').forEach((c) => {
-      c.classList.toggle('active-photo', c.dataset.photoId === photoId);
+      const isActive = c.dataset.photoId === photoId;
+      c.classList.toggle('active', isActive);
+      c.classList.toggle('active-photo', isActive);
+      const pill = c.querySelector('.active-slot-pill');
+      if (isActive && !pill) {
+        const newPill = document.createElement('div');
+        newPill.className = 'active-slot-pill';
+        newPill.textContent = '꾸미는 중';
+        c.append(newPill);
+      } else if (!isActive && pill) {
+        pill.remove();
+      }
     });
     $$('.sticker-node').forEach((n) => n.classList.remove('selected'));
     updateActivePhotoBanner();
