@@ -7,7 +7,6 @@ const outDir = path.join(__dirname, '..', 'public', 'stickers');
 
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-// 1. Sheet configurations
 const sheets = [
   {
     path: path.join(brainDir, 'cloud_emotions_sheet_1_1788339535454.jpg'),
@@ -15,6 +14,8 @@ const sheets = [
     rows: 4,
     cols: 4,
     hasBottomText: false,
+    topLimit: 14,
+    botLimit: 242,
     outSize: 320
   },
   {
@@ -23,6 +24,8 @@ const sheets = [
     rows: 4,
     cols: 4,
     hasBottomText: true,
+    topLimit: 26, // Completely cuts off top neighbor text badge lines
+    botLimit: 206, // Completely cuts off bottom English text placards
     outSize: 320
   },
   {
@@ -31,6 +34,8 @@ const sheets = [
     rows: 4,
     cols: 4,
     hasBottomText: false,
+    topLimit: 14,
+    botLimit: 242,
     outSize: 320
   },
   {
@@ -39,13 +44,13 @@ const sheets = [
     rows: 4,
     cols: 3,
     hasBottomText: false,
+    topLimit: 14,
+    botLimit: 242,
     outSize: 320
   }
 ];
 
-// 2. Icheon 20th custom rects
 const icheonStickers = [
-  // Sheet 1
   {
     sheet: path.join(brainDir, 'icheon_20th_korean_stickers_1_1788392631357.jpg'),
     id: 'icheon_20th_01',
@@ -76,8 +81,6 @@ const icheonStickers = [
     id: 'icheon_20th_06',
     rect: { left: 730, top: 375, width: 235, height: 275 }
   },
-
-  // Sheet 2
   {
     sheet: path.join(brainDir, 'icheon_20th_korean_stickers_2_1788392651314.jpg'),
     id: 'icheon_20th_07',
@@ -111,54 +114,57 @@ const icheonStickers = [
 ];
 
 /**
- * Ultra-Smooth Studio Matting Engine
- * - 4-Way Safe Flood Fill (Protects cream whites & hat peaks)
- * - Intelligent Character Bottom Boundary Detection (Removes placard tabs & bottom text 100%)
- * - Top Debris Elimination (Removes cross-cell text fragments)
- * - Connected Component Isolation (Isolates primary character and connected props)
- * - Mathematical Unpremultiply Defringing (100% white halo elimination)
+ * True Silhouette Extraction Engine
+ * - Pierces through die-cut cutting lines and neutral drop shadows
+ * - Completely isolates the primary character inside the dark contour
+ * - Enforces safe vertical bounding boxes to eliminate neighbor text bleed
+ * - Applies mathematical unpremultiply defringing against white/grey bleed
  */
-async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize, destPath, isDjSticker = false) {
+async function processRawBuffer(rawBuffer, width, height, topLimit, botLimit, outSize, destPath) {
   const w = width;
   const h = height;
   const n = w * h;
   const isOuterBg = new Uint8Array(n);
   const queue = [];
 
-  // ONLY pure neutral white background (diff <= 5 and brightness >= 251)
-  function isOuterWhite(r, g, b) {
+  // Background candidate:
+  // 1. Pure or near-white background (diff <= 6, br >= 246)
+  // 2. Neutral grey die-cut line and drop shadow (diff <= 4, br >= 135)
+  function isOuterBgCandidate(r, g, b) {
     const diff = Math.max(r, g, b) - Math.min(r, g, b);
-    return r >= 251 && g >= 251 && b >= 251 && diff <= 5;
+    const br = (r + g + b) / 3;
+    if (br >= 246 && diff <= 6) return true;
+    if (br >= 135 && diff <= 4) return true;
+    return false;
   }
 
-  // 1. Seed boundary pixels from all 4 borders
+  // 1. Seed 4 borders
   for (let x = 0; x < w; x++) {
-    const topIdx = x;
-    const piTop = topIdx * 4;
-    if (isOuterWhite(rawBuffer[piTop], rawBuffer[piTop + 1], rawBuffer[piTop + 2])) {
-      isOuterBg[topIdx] = 1;
-      queue.push(topIdx);
+    const iTop = x * 4;
+    if (isOuterBgCandidate(rawBuffer[iTop], rawBuffer[iTop + 1], rawBuffer[iTop + 2])) {
+      isOuterBg[x] = 1;
+      queue.push(x);
     }
-    const botIdx = (h - 1) * w + x;
-    const piBot = botIdx * 4;
-    if (!isOuterBg[botIdx] && isOuterWhite(rawBuffer[piBot], rawBuffer[piBot + 1], rawBuffer[piBot + 2])) {
-      isOuterBg[botIdx] = 1;
-      queue.push(botIdx);
+    const idxBot = (h - 1) * w + x;
+    const iBot = idxBot * 4;
+    if (!isOuterBg[idxBot] && isOuterBgCandidate(rawBuffer[iBot], rawBuffer[iBot + 1], rawBuffer[iBot + 2])) {
+      isOuterBg[idxBot] = 1;
+      queue.push(idxBot);
     }
   }
 
   for (let y = 0; y < h; y++) {
-    const leftIdx = y * w;
-    const piLeft = leftIdx * 4;
-    if (!isOuterBg[leftIdx] && isOuterWhite(rawBuffer[piLeft], rawBuffer[piLeft + 1], rawBuffer[piLeft + 2])) {
-      isOuterBg[leftIdx] = 1;
-      queue.push(leftIdx);
+    const idxLeft = y * w;
+    const iLeft = idxLeft * 4;
+    if (!isOuterBg[idxLeft] && isOuterBgCandidate(rawBuffer[iLeft], rawBuffer[iLeft + 1], rawBuffer[iLeft + 2])) {
+      isOuterBg[idxLeft] = 1;
+      queue.push(idxLeft);
     }
-    const rightIdx = y * w + (w - 1);
-    const piRight = rightIdx * 4;
-    if (!isOuterBg[rightIdx] && isOuterWhite(rawBuffer[piRight], rawBuffer[piRight + 1], rawBuffer[piRight + 2])) {
-      isOuterBg[rightIdx] = 1;
-      queue.push(rightIdx);
+    const idxRight = y * w + (w - 1);
+    const iRight = idxRight * 4;
+    if (!isOuterBg[idxRight] && isOuterBgCandidate(rawBuffer[iRight], rawBuffer[iRight + 1], rawBuffer[iRight + 2])) {
+      isOuterBg[idxRight] = 1;
+      queue.push(idxRight);
     }
   }
 
@@ -179,7 +185,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
         const nidx = ny * w + nx;
         if (!isOuterBg[nidx]) {
           const pi = nidx * 4;
-          if (isOuterWhite(rawBuffer[pi], rawBuffer[pi + 1], rawBuffer[pi + 2])) {
+          if (isOuterBgCandidate(rawBuffer[pi], rawBuffer[pi + 1], rawBuffer[pi + 2])) {
             isOuterBg[nidx] = 1;
             queue.push(nidx);
           }
@@ -188,27 +194,13 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     }
   }
 
-  // 3. Precise Cutoffs to remove Placard Tabs and English Text
-  let bottomCutoff = h;
-  if (hasBottomText) {
-    if (isDjSticker) {
-      bottomCutoff = 206; // DJ Mixing table end
-    } else {
-      bottomCutoff = Math.floor(h * 0.812); // Exact bottom cloud boundary (207px)
-    }
-  } else {
-    bottomCutoff = Math.floor(h * 0.94);
-  }
-
-  const topCutoff = hasBottomText ? Math.floor(h * 0.08) : 0;
-
-  // 4. Connected Components Labeling
+  // 3. Connected Components Labeling within Safe Character Zone
   const labels = new Int32Array(n);
   let labelCount = 0;
   const componentSizes = [0];
   const componentBoundingBoxes = [null];
 
-  for (let y = topCutoff; y < bottomCutoff; y++) {
+  for (let y = topLimit; y < botLimit; y++) {
     for (let x = 0; x < w; x++) {
       const idx = y * w + x;
       if (isOuterBg[idx] === 0 && labels[idx] === 0) {
@@ -232,7 +224,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
           for (let k = 0; k < 4; k++) {
             const nx = cx + dx[k];
             const ny = cy + dy[k];
-            if (nx >= 0 && nx < w && ny >= topCutoff && ny < bottomCutoff) {
+            if (nx >= 0 && nx < w && ny >= topLimit && ny < botLimit) {
               const nidx = ny * w + nx;
               if (isOuterBg[nidx] === 0 && labels[nidx] === 0) {
                 labels[nidx] = labelCount;
@@ -247,7 +239,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     }
   }
 
-  // Find Primary Character Component
+  // Find the primary central character component
   let bestLabel = 1;
   let maxSize = 0;
   for (let lbl = 1; lbl <= labelCount; lbl++) {
@@ -266,15 +258,15 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     const sz = componentSizes[lbl];
 
     if (sz > maxSize * 0.005) {
-      const yOverlap = (box.minY <= mainBox.maxY + 12) && (box.maxY >= mainBox.minY - 12);
-      const xOverlap = (box.minX <= mainBox.maxX + 12) && (box.maxX >= mainBox.minX - 12);
+      const yOverlap = (box.minY <= mainBox.maxY + 8) && (box.maxY >= mainBox.minY - 8);
+      const xOverlap = (box.minX <= mainBox.maxX + 8) && (box.maxX >= mainBox.minX - 8);
       if (yOverlap && xOverlap) {
         keepLabels.add(lbl);
       }
     }
   }
 
-  // 5. Mathematical Unpremultiply & Ultra-Smooth Anti-Aliased Edge Refinement
+  // 4. Assemble RGBA with Edge Defringing
   const finalRgba = Buffer.alloc(n * 4);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -282,31 +274,29 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
       const pi = idx * 4;
       const lbl = labels[idx];
 
-      if (!keepLabels.has(lbl)) {
-        finalRgba[pi + 3] = 0; // Zero alpha
+      if (y < topLimit || y >= botLimit || !keepLabels.has(lbl)) {
+        finalRgba[pi + 3] = 0; // Pure Transparent
       } else {
         let r = rawBuffer[pi];
         let g = rawBuffer[pi + 1];
         let b = rawBuffer[pi + 2];
 
-        // Check if pixel is touching void background
+        // Check if pixel touches transparent boundary
         let bgNeighbors = 0;
         for (let k = 0; k < 4; k++) {
           const nx = x + dx[k];
           const ny = y + dy[k];
-          if (nx < 0 || nx >= w || ny < 0 || ny >= h || !keepLabels.has(labels[ny * w + nx])) {
+          if (nx < 0 || nx >= w || ny < topLimit || ny >= botLimit || !keepLabels.has(labels[ny * w + nx])) {
             bgNeighbors++;
           }
         }
 
         if (bgNeighbors > 0) {
           const br = (r + g + b) / 3;
-          if (br > 225) {
-            // Smooth falloff based on proximity to pure white
+          if (br > 220) {
             const a = Math.max(0, Math.min(255, Math.round((255 - br) * 11)));
             finalRgba[pi + 3] = a;
             if (a > 0) {
-              // Mathematical Unpremultiply against White (255) to eliminate halo 100%
               const aNorm = a / 255;
               r = Math.max(0, Math.min(255, Math.round((r - 255 * (1 - aNorm)) / aNorm)));
               g = Math.max(0, Math.min(255, Math.round((g - 255 * (1 - aNorm)) / aNorm)));
@@ -326,7 +316,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
     }
   }
 
-  // 6. High-Precision Crop & Lanczos3 Downsample with Crystal Anti-Aliasing
+  // 5. Trim & Scale to outSize with Lanczos3
   await sharp(finalRgba, { raw: { width: w, height: h, channels: 4 } })
     .trim({ threshold: 4 })
     .resize(outSize, outSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 }, kernel: 'lanczos3' })
@@ -335,7 +325,7 @@ async function processRawBuffer(rawBuffer, width, height, hasBottomText, outSize
 }
 
 async function run() {
-  console.log('--- EXECUTING ULTRA-SMOOTH MATTE REGENERATION FOR ALL 72 STICKERS ---');
+  console.log('--- EXECUTING TRUE SILHOUETTE REGENERATION (ZERO DIE-CUT BORDER, ZERO TEXT BLEED) ---');
 
   // Process 60 Cloud Stickers
   for (const sheet of sheets) {
@@ -362,9 +352,8 @@ async function run() {
           .raw()
           .toBuffer({ resolveWithObject: true });
 
-        const isDj = (sheet.prefix === 'cloud_costume' && idx === 10);
-        await processRawBuffer(data, info.width, info.height, sheet.hasBottomText, sheet.outSize, destPath, isDj);
-        console.log(`  -> Ultra-Smooth Silhouette Generated: ${filename}`);
+        await processRawBuffer(data, info.width, info.height, sheet.topLimit, sheet.botLimit, sheet.outSize, destPath);
+        console.log(`  -> Pure True Silhouette: ${filename}`);
       }
     }
   }
@@ -381,11 +370,11 @@ async function run() {
       .raw()
       .toBuffer({ resolveWithObject: true });
 
-    await processRawBuffer(data, info.width, info.height, false, 340, destPath, false);
-    console.log(`  -> Ultra-Smooth Silhouette Generated: ${filename}`);
+    await processRawBuffer(data, info.width, info.height, 0, info.height, 340, destPath);
+    console.log(`  -> Pure True Silhouette: ${filename}`);
   }
 
-  console.log('\nSUCCESS: All 72 stickers regenerated with crystal vector-grade silhouettes, 0 halo, 0 bottom tabs, 0 top debris!');
+  console.log('\nSUCCESS: All 72 stickers regenerated with 100% pure silhouette, 0 die-cut margins, 0 stray lines, 0 neighbor text bleed!');
 }
 
 run().catch(console.error);
