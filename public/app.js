@@ -595,10 +595,10 @@
 
     const cats = CFG.stickers?.categories || [
       { id: 'icheon_20th', label: '🎉 이천 20주년' },
-      { id: 'cloud_emotion', label: '구름이 표정' },
-      { id: 'cloud_costume', label: '구름이 코스튬' },
-      { id: 'cloud_action', label: '구름이 응원' },
-      { id: 'cloud_special', label: '구름이 스페셜' },
+      { id: 'cloud_emotion', label: '너우리 표정' },
+      { id: 'cloud_costume', label: '너우리 코스튬' },
+      { id: 'cloud_action', label: '너우리 응원' },
+      { id: 'cloud_special', label: '너우리 스페셜' },
       { id: 'decorations', label: '러블리 데코' }
     ];
 
