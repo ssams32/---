@@ -246,11 +246,14 @@ function getClients() {
   const isLocalMock =
     process.env.LOCAL_MOCK === 'true' ||
     cfg.supabaseUrl.includes('YOUR_PROJECT') ||
+    cfg.supabaseUrl.includes('dummy') ||
     cfg.redisUrl.includes('YOUR_REDIS') ||
+    cfg.redisUrl.includes('dummy') ||
+    cfg.redisToken.includes('dummy') ||
     !cfg.supabaseUrl.startsWith('https://');
 
   if (isLocalMock) {
-    console.log('[Info] 로컬 개발용 인메모리 저장소(Memory DB & Storage & Redis) 모드로 실행됩니다.');
+    console.log('[Info] 안전한 로컬/서버리스 인메모리 저장소(Memory DB & Storage & Redis) 모드로 실행됩니다.');
     clients = createLocalMockClients(cfg);
     return clients;
   }
