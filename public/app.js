@@ -5,6 +5,22 @@
 (() => {
   'use strict';
 
+  // Automatic PWA Cache Buster: Purge stale caches when new version deployed
+  const CURRENT_APP_VERSION = 'v4.5.0';
+  try {
+    const savedVer = localStorage.getItem('maeum_app_version');
+    if (savedVer && savedVer !== CURRENT_APP_VERSION) {
+      localStorage.setItem('maeum_app_version', CURRENT_APP_VERSION);
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        });
+      }
+    } else {
+      localStorage.setItem('maeum_app_version', CURRENT_APP_VERSION);
+    }
+  } catch (e) {}
+
   // DOM Query Helpers
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
