@@ -1973,36 +1973,44 @@ main#app {
     font-size: 19px;
   }
 
-  /* 2. Camera Stage Portrait: Full-FOV 4:3 Viewfinder (Zero-Clipping) : Slim Status Dock */
+  /* 2. Camera Stage Portrait: Full-Bleed Maximum Kiosk Viewfinder (85% Screen Coverage) */
+  #camera {
+    padding-top: calc(52px + env(safe-area-inset-top, 0px) + 4px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    padding-inline: 8px;
+  }
   .camera-stage-layout {
     flex-direction: column;
     height: 100%;
+    width: 100%;
+    max-width: none;
     gap: 8px;
     justify-content: space-between;
-    align-items: center;
+    align-items: stretch;
   }
   .camera-viewfinder-pane {
     flex: 1 1 auto;
     width: 100%;
     min-height: 0;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     overflow: hidden;
+    padding: 0;
   }
   .camera-viewfinder-frame {
     width: 100%;
-    max-width: 640px;
-    height: auto;
-    max-height: 100%;
-    aspect-ratio: 4 / 3; /* EXACT 4:3 MATCH WITH CAPTURE! ZERO CROPPING! */
-    margin: auto;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    aspect-ratio: auto;
+    margin: 0;
     background: #000000;
-    border-radius: var(--radius-lg);
+    border-radius: 20px;
     overflow: hidden;
     position: relative;
-    border: 2px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
   }
   .camera-viewfinder-frame video {
     width: 100%;
@@ -2016,52 +2024,54 @@ main#app {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 110px;
-    height: 110px;
+    width: 130px;
+    height: 130px;
     background: rgba(255, 201, 60, 0.95);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 36px rgba(0, 0, 0, 0.6);
     z-index: 45;
   }
   #countdown {
-    font-size: 76px;
+    font-size: 90px;
     color: #17141D;
   }
   .camera-status-pane {
-    flex: 0 0 auto;
+    flex: 0 0 72px;
+    height: 72px;
     width: 100%;
-    max-width: 640px;
-    padding: 10px 16px;
+    max-width: none;
+    padding: 0 16px;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 12px;
     background: #211C29;
-    border-radius: var(--radius-lg);
-    margin: 0 auto;
+    border-radius: 16px;
+    margin: 0;
   }
   .camera-status-pane .shooting-guide-text {
     display: none;
   }
   .camera-status-pane .status-shot-badge {
-    font-size: 14px;
-    padding: 6px 12px;
+    font-size: 15px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.12);
   }
   .camera-status-pane .six-node-track {
     gap: 6px;
   }
   .camera-status-pane .node-dot {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
   }
   .camera-status-pane .btn-shutter-kiosk {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
   }
   .camera-status-pane .btn-cancel-kiosk {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding: 8px 14px;
+    font-size: 13px;
   }
 
   /* 3. Selection Portrait: Top 40% Mini Strip : Bottom 60% 6-Photo Grid */

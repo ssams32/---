@@ -239,17 +239,6 @@
         });
       }
 
-      // Synchronize viewfinder aspect ratio with actual camera stream to eliminate ALL cropping
-      const vfFrame = $('.camera-viewfinder-frame');
-      if (vfFrame && video.videoWidth && video.videoHeight) {
-        const streamAspect = video.videoWidth / video.videoHeight;
-        if (streamAspect >= 1) {
-          vfFrame.style.aspectRatio = '4 / 3';
-        } else {
-          vfFrame.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
-        }
-      }
-
       show('camera');
       startShootingSequence();
     } catch (err) {
@@ -261,37 +250,41 @@
     }
   }
 
-  // High-Resolution Snapshot Capture from Video with Zero-Distortion Math
+  // High-Resolution Snapshot Capture: Matches EXACT viewfinder visible FOV (Zero Distortion, Zero Surprises)
   async function captureVideoBlob() {
     const video = $('#video');
     const canvas = $('#captureCanvas');
     const ctx = canvas.getContext('2d', { alpha: false });
-    const w = 1200, h = 900;
-    canvas.width = w;
-    canvas.height = h;
 
     const vw = video.videoWidth || 1200;
     const vh = video.videoHeight || 900;
+    const dispW = video.clientWidth || 4;
+    const dispH = video.clientHeight || 3;
+    const displayAspect = dispW / dispH;
 
-    const targetRatio = w / h; // 4/3 = 1.333
-    const videoRatio = vw / vh;
+    const w = 1200;
+    const h = Math.round(w / displayAspect);
+    canvas.width = w;
+    canvas.height = h;
+
+    const videoAspect = vw / vh;
 
     let sx, sy, sw, sh;
-    if (videoRatio > targetRatio) {
+    if (videoAspect > displayAspect) {
       sh = vh;
-      sw = vh * targetRatio;
+      sw = vh * displayAspect;
       sx = (vw - sw) / 2;
       sy = 0;
     } else {
       sw = vw;
-      sh = vw / targetRatio;
+      sh = vw / displayAspect;
       sx = 0;
       sy = (vh - sh) / 2;
     }
 
     ctx.save();
     ctx.translate(w, 0);
-    ctx.scale(-1, 1); // Mirror for natural selfie camera
+    ctx.scale(-1, 1); // Natural selfie mirror
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
     ctx.restore();
 
