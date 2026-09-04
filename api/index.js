@@ -42,6 +42,16 @@ async function getStoredAdminConfig(){
   }
 }
 
+app.get('/manifest.json',(req,res)=>{
+  const p=path.join(__dirname,'..','public','manifest.json');
+  if(fs.existsSync(p)){
+    res.set('Content-Type','application/manifest+json; charset=utf-8');
+    res.set('Cache-Control','public, max-age=3600');
+    return res.sendFile(p);
+  }
+  res.status(404).end();
+});
+
 app.get('/admin',(req,res)=>{
   const adminHtmlPath=path.join(__dirname,'..','public','admin.html');
   if(fs.existsSync(adminHtmlPath))return res.sendFile(adminHtmlPath);
