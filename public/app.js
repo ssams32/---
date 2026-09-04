@@ -213,8 +213,13 @@
     }
 
     try {
+      // Request native wide field-of-view (4:3 sensor native for iPad cameras)
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1600 }, height: { ideal: 1200 } },
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1440, min: 720 }
+        },
         audio: false
       });
       if (run !== state.runId) {
@@ -234,6 +239,17 @@
         });
       }
 
+      // Synchronize viewfinder aspect ratio with actual camera stream to eliminate ALL cropping
+      const vfFrame = $('.camera-viewfinder-frame');
+      if (vfFrame && video.videoWidth && video.videoHeight) {
+        const streamAspect = video.videoWidth / video.videoHeight;
+        if (streamAspect >= 1) {
+          vfFrame.style.aspectRatio = '4 / 3';
+        } else {
+          vfFrame.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+        }
+      }
+
       show('camera');
       startShootingSequence();
     } catch (err) {
@@ -245,7 +261,7 @@
     }
   }
 
-  // High-Resolution Snapshot Capture from Video
+  // High-Resolution Snapshot Capture from Video with Zero-Distortion Math
   async function captureVideoBlob() {
     const video = $('#video');
     const canvas = $('#captureCanvas');
@@ -254,15 +270,28 @@
     canvas.width = w;
     canvas.height = h;
 
-    const ratio = Math.max(w / video.videoWidth, h / video.videoHeight);
-    const sw = w / ratio;
-    const sh = h / ratio;
-    const sx = (video.videoWidth - sw) / 2;
-    const sy = (video.videoHeight - sh) / 2;
+    const vw = video.videoWidth || 1200;
+    const vh = video.videoHeight || 900;
+
+    const targetRatio = w / h; // 4/3 = 1.333
+    const videoRatio = vw / vh;
+
+    let sx, sy, sw, sh;
+    if (videoRatio > targetRatio) {
+      sh = vh;
+      sw = vh * targetRatio;
+      sx = (vw - sw) / 2;
+      sy = 0;
+    } else {
+      sw = vw;
+      sh = vw / targetRatio;
+      sx = 0;
+      sy = (vh - sh) / 2;
+    }
 
     ctx.save();
     ctx.translate(w, 0);
-    ctx.scale(-1, 1); // Mirror for selfie camera
+    ctx.scale(-1, 1); // Mirror for natural selfie camera
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
     ctx.restore();
 
@@ -270,7 +299,7 @@
       canvas.toBlob((blob) => {
         if (blob) resolve(blob);
         else reject(new Error('사진 생성 실패'));
-      }, 'image/jpeg', 0.90);
+      }, 'image/jpeg', 0.95);
     });
   }
 

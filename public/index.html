@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="stylesheet" href="/style.css?v=4.4.5">
+  <link rel="stylesheet" href="/style.css?v=4.4.6">
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
@@ -159,7 +159,7 @@
          ============================================================= -->
     <section id="camera" class="screen" aria-label="사진 촬영 화면">
       <div class="camera-stage-layout">
-        <!-- Camera Viewfinder Stage: 72% -->
+        <!-- Camera Viewfinder Stage -->
         <div class="camera-viewfinder-pane">
           <div class="camera-viewfinder-frame">
             <video id="video" autoplay playsinline muted></video>
@@ -168,18 +168,18 @@
             <div class="vf-corner bottom-left"></div>
             <div class="vf-corner bottom-right"></div>
             <div id="flash"></div>
+
+            <!-- Giant Countdown Circle Floating in Center of Viewfinder -->
+            <div class="countdown-huge-wrapper" id="countdownBox">
+              <span id="countdown">3</span>
+            </div>
           </div>
         </div>
 
-        <!-- Status & Countdown Panel: 28% -->
+        <!-- Status & Control Panel -->
         <div class="camera-status-pane">
           <div class="status-shot-badge">
             <span id="shotCount">1</span> / 6 촬영
-          </div>
-
-          <!-- Giant 140px Countdown Circle -->
-          <div class="countdown-huge-wrapper" id="countdownBox">
-            <span id="countdown">3</span>
           </div>
 
           <!-- 6-Node Progress Track: [●][●][◉][○][○][○] -->
@@ -406,7 +406,7 @@
   <div id="printArea" class="print-only" aria-hidden="true"></div>
 
   <canvas id="captureCanvas" hidden></canvas>
-  <script src="/config.js?v=4.4.5"></script>
-  <script src="/app.js?v=4.4.5"></script>
+  <script src="/config.js?v=4.4.6"></script>
+  <script src="/app.js?v=4.4.6"></script>
 </body>
 </html>
