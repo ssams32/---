@@ -279,6 +279,13 @@ button:focus-visible, a:focus-visible {
   background: rgba(255, 255, 255, 0.15);
 }
 
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header-tool-btn,
 .admin-btn {
   width: 38px;
   height: 38px;
@@ -292,8 +299,18 @@ button:focus-visible, a:focus-visible {
   font-size: 16px;
   text-decoration: none;
   box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-standard);
 }
 
+.header-tool-btn:hover,
+.admin-btn:hover {
+  background: var(--color-surface);
+  color: var(--color-brand-primary);
+  transform: scale(1.06);
+}
+
+.kiosk-header.shooting-mode .header-tool-btn,
 .kiosk-header.shooting-mode .admin-btn {
   background: var(--color-night-raised);
   border-color: rgba(255, 255, 255, 0.15);
@@ -540,6 +557,13 @@ main#app {
   background: #FFFFFF;
 }
 
+.landing-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .privacy-reassurance-pill {
   display: inline-flex;
   align-items: center;
@@ -551,6 +575,162 @@ main#app {
   color: var(--color-success);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-bold);
+}
+
+.app-mode-guide-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 16px;
+  background: #FFFFFF;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.app-mode-guide-pill:hover {
+  background: var(--color-brand-primary-soft);
+  transform: translateY(-1px);
+}
+
+/* PWA App Mode Guide Modal */
+.pwa-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 20, 29, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all var(--duration-normal) var(--ease-standard);
+}
+
+.pwa-modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.pwa-modal-card {
+  width: min(520px, 100%);
+  background: #FFFFFF;
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: 0 24px 64px rgba(23, 20, 29, 0.3);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transform: scale(0.95);
+  transition: transform var(--duration-normal) var(--ease-standard);
+}
+
+.pwa-modal-overlay.show .pwa-modal-card {
+  transform: scale(1);
+}
+
+.pwa-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-3);
+}
+
+.pwa-modal-icon {
+  font-size: 28px;
+}
+
+.pwa-modal-header h3 {
+  flex: 1;
+  font-size: 18px;
+  font-weight: var(--font-weight-extra-bold);
+  color: var(--color-night);
+  line-height: 1.3;
+}
+
+.btn-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--duration-fast);
+}
+
+.btn-modal-close:hover {
+  background: #E8E2EC;
+}
+
+.pwa-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.pwa-step-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.pwa-step-num {
+  font-size: 11px;
+  font-weight: var(--font-weight-black);
+  color: var(--color-brand-primary);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.pwa-step-box h4 {
+  font-size: 15px;
+  font-weight: var(--font-weight-bold);
+  margin-bottom: 8px;
+  color: var(--color-night);
+}
+
+.pwa-step-box ol {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-ink);
+}
+
+.pwa-step-box ol li {
+  margin-bottom: 4px;
+}
+
+.pwa-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-2);
+}
+
+.pwa-modal-footer .btn-kiosk-primary {
+  width: 100%;
+  height: 52px;
 }
 
 /* Right Column: 58% Oversized Photostrip Frame Visual */

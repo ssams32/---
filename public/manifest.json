@@ -1,0 +1,32 @@
+{
+  "name": "마음 네컷 포토부스 | 이천시정신건강복지센터 20주년",
+  "short_name": "마음네컷",
+  "description": "이천시정신건강복지센터 20주년 기념 무인 셀프 포토부스 키오스크",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#F6F2F7",
+  "theme_color": "#F6F2F7",
+  "categories": ["photo", "entertainment"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

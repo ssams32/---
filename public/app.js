@@ -1275,6 +1275,41 @@
     }
   });
 
+  // Fullscreen Toggle Handler
+  function toggleFullScreen() {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        document.documentElement.webkitRequestFullscreen();
+      }
+      showNotice('⛶ 전체화면 모드로 전환되었습니다');
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+  }
+  $('#fullscreenBtn')?.addEventListener('click', toggleFullScreen);
+
+  // PWA / App Mode Guide Modal Handlers
+  const pwaModal = $('#pwaGuideModal');
+  $('#appModeGuideBtn')?.addEventListener('click', () => {
+    pwaModal?.classList.add('show');
+    pwaModal?.setAttribute('aria-hidden', 'false');
+  });
+  const closePwaModal = () => {
+    pwaModal?.classList.remove('show');
+    pwaModal?.setAttribute('aria-hidden', 'true');
+  };
+  $('#closePwaModalBtn')?.addEventListener('click', closePwaModal);
+  $('#confirmPwaModalBtn')?.addEventListener('click', closePwaModal);
+  pwaModal?.addEventListener('click', (e) => {
+    if (e.target === pwaModal) closePwaModal();
+  });
+
   // Admin secret gesture on logo (press & hold for 2.8 seconds)
   let logoTimer = null;
   const logoBadge = $('#logoBadge');

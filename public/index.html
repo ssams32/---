@@ -5,11 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="마음네컷">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#F6F2F7">
   <title>이천시정신건강복지센터 20주년 | 마음 네컷 포토부스</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="stylesheet" href="/style.css?v=4.4.4">
+  <link rel="stylesheet" href="/style.css?v=4.4.5">
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
@@ -45,6 +49,7 @@
     </nav>
 
     <div class="header-tools">
+      <button type="button" class="header-tool-btn" id="fullscreenBtn" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
       <a href="/admin" class="admin-btn" title="관리자 센터" aria-label="관리자 센터">⚙</a>
     </div>
   </header>
@@ -80,9 +85,15 @@
             </button>
           </div>
 
-          <div class="privacy-reassurance-pill">
-            <span>✓</span>
-            <span>이름·전화번호를 받지 않아요</span>
+          <div class="landing-badges-row">
+            <div class="privacy-reassurance-pill">
+              <span>✓</span>
+              <span>이름·전화번호를 받지 않아요</span>
+            </div>
+            <button type="button" class="app-mode-guide-pill" id="appModeGuideBtn" title="상단 주소창 없이 앱처럼 사용하는 방법">
+              <span>📱</span>
+              <span>주소창 없이 앱처럼 쓰기</span>
+            </button>
           </div>
         </div>
 
@@ -357,11 +368,45 @@
     </section>
   </main>
 
+  <!-- App Mode / Fullscreen Guide Modal -->
+  <div id="pwaGuideModal" class="pwa-modal-overlay" aria-hidden="true">
+    <div class="pwa-modal-card" role="dialog" aria-labelledby="pwaModalTitle">
+      <div class="pwa-modal-header">
+        <span class="pwa-modal-icon">📱</span>
+        <h3 id="pwaModalTitle">아이패드에서 앱처럼 전체화면으로 쓰는 법</h3>
+        <button type="button" class="btn-modal-close" id="closePwaModalBtn" aria-label="닫기">✕</button>
+      </div>
+      <div class="pwa-modal-body">
+        <div class="pwa-step-box">
+          <div class="pwa-step-num">방법 1 (가장 추천! 상단바 100% 제거)</div>
+          <h4>Safari "홈 화면에 추가"</h4>
+          <ol>
+            <li>Safari 우측 상단의 <strong>[공유]</strong> 버튼(네모에 위 화살표 ↑)을 누릅니다.</li>
+            <li>메뉴에서 <strong>[홈 화면에 추가]</strong>를 누르고 우측 상단 <strong>[추가]</strong>를 터치합니다.</li>
+            <li>아이패드 바탕화면에 생긴 <strong>[마음네컷]</strong> 아이콘을 켜면 <strong>상단 주소창이 100% 완전히 사라진 진짜 앱</strong>으로 실행됩니다!</li>
+          </ol>
+        </div>
+
+        <div class="pwa-step-box">
+          <div class="pwa-step-num">방법 2 (포토부스 매장용 잠금)</div>
+          <h4>아이패드 "사용법 유도 (Guided Access)"</h4>
+          <ol>
+            <li>아이패드 <strong>설정 > 손쉬운 사용 > 사용법 유도</strong>를 켭니다.</li>
+            <li>마음네컷을 켠 상태에서 <strong>전원 버튼을 세 번(트리플 클릭)</strong> 누르면 키오스크 전용 모드로 잠겨 손님이 나갈 수 없습니다.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="pwa-modal-footer">
+        <button type="button" class="btn-kiosk-primary" id="confirmPwaModalBtn">확인했습니다</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Photo Printer dedicated full-bleed print container -->
   <div id="printArea" class="print-only" aria-hidden="true"></div>
 
   <canvas id="captureCanvas" hidden></canvas>
-  <script src="/config.js?v=4.4.4"></script>
-  <script src="/app.js?v=4.4.4"></script>
+  <script src="/config.js?v=4.4.5"></script>
+  <script src="/app.js?v=4.4.5"></script>
 </body>
 </html>
