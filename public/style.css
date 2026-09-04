@@ -931,18 +931,44 @@ main#app {
 
 .camera-viewfinder-frame {
   width: 100%;
-  height: auto;
-  max-height: 720px;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   background: #0A090D;
   border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.16);
   box-shadow: var(--shadow-deep);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: max-width 0.3s var(--ease-standard), aspect-ratio 0.3s var(--ease-standard);
+}
+
+.camera-viewfinder-frame.ratio-portrait {
+  aspect-ratio: 3 / 4;
+  height: 100%;
+  max-height: calc(100vh - 130px);
+  width: auto;
+  max-width: 100%;
+  margin: auto;
+}
+
+.camera-viewfinder-frame.ratio-full {
+  aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+}
+
+.camera-viewfinder-frame.ratio-landscape {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  max-width: 820px;
+  height: auto;
+  max-height: 100%;
+  margin: auto;
 }
 
 .camera-viewfinder-frame video {
@@ -951,6 +977,39 @@ main#app {
   object-fit: cover;
   transform: scaleX(-1);
   display: block;
+}
+
+/* Ratio Switcher Pill Button */
+.btn-ratio-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(23, 20, 29, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-pill);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: all var(--duration-fast) var(--ease-standard);
+}
+
+.btn-ratio-toggle:hover {
+  background: rgba(255, 79, 135, 0.9);
+  border-color: var(--color-brand-primary);
+  transform: scale(1.05);
+}
+
+.btn-ratio-toggle:active {
+  transform: scale(0.96);
 }
 
 /* Viewfinder Corner Framing Guides */
@@ -1999,18 +2058,37 @@ main#app {
     padding: 0;
   }
   .camera-viewfinder-frame {
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    aspect-ratio: auto;
-    margin: 0;
     background: #000000;
     border-radius: 20px;
     overflow: hidden;
     position: relative;
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+    transition: all 0.25s var(--ease-standard);
+  }
+  .camera-viewfinder-frame.ratio-portrait {
+    aspect-ratio: 3 / 4;
+    height: 100%;
+    max-height: calc(100vh - 140px);
+    width: auto;
+    max-width: 100%;
+    margin: auto;
+  }
+  .camera-viewfinder-frame.ratio-full {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+  }
+  .camera-viewfinder-frame.ratio-landscape {
+    aspect-ratio: 4 / 3;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 100%;
+    margin: auto;
   }
   .camera-viewfinder-frame video {
     width: 100%;

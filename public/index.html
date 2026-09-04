@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-  <link rel="stylesheet" href="/style.css?v=4.4.7">
+  <link rel="stylesheet" href="/style.css?v=4.4.8">
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
@@ -161,13 +161,19 @@
       <div class="camera-stage-layout">
         <!-- Camera Viewfinder Stage -->
         <div class="camera-viewfinder-pane">
-          <div class="camera-viewfinder-frame">
+          <div class="camera-viewfinder-frame ratio-portrait" id="viewfinderFrame">
             <video id="video" autoplay playsinline muted></video>
             <div class="vf-corner top-left"></div>
             <div class="vf-corner top-right"></div>
             <div class="vf-corner bottom-left"></div>
             <div class="vf-corner bottom-right"></div>
             <div id="flash"></div>
+
+            <!-- Live Ratio Switcher Badge (3:4 Portrait / Full / 4:3) -->
+            <button type="button" class="btn-ratio-toggle" id="ratioToggleBtn" title="화면 비율 변경 (3:4 인물 / 화면 가득 / 4:3 와이드)" aria-label="카메라 비율 변경">
+              <span id="ratioIcon">📐</span>
+              <span id="ratioLabel">3:4 인물 (대형)</span>
+            </button>
 
             <!-- Giant Countdown Circle Floating in Center of Viewfinder -->
             <div class="countdown-huge-wrapper" id="countdownBox">
@@ -406,7 +412,7 @@
   <div id="printArea" class="print-only" aria-hidden="true"></div>
 
   <canvas id="captureCanvas" hidden></canvas>
-  <script src="/config.js?v=4.4.7"></script>
-  <script src="/app.js?v=4.4.7"></script>
+  <script src="/config.js?v=4.4.8"></script>
+  <script src="/app.js?v=4.4.8"></script>
 </body>
 </html>

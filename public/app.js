@@ -1316,6 +1316,38 @@
   }
   $('#fullscreenBtn')?.addEventListener('click', toggleFullScreen);
 
+  // Camera Ratio Switcher (3:4 Portrait -> Full Screen -> 4:3 Landscape)
+  const ratioOrder = ['portrait', 'full', 'landscape'];
+  const ratioConfig = {
+    portrait: { label: '3:4 인물 (대형)', icon: '📐', notice: '📐 3:4 인물 모드 (높이 85% 대형 뷰)' },
+    full: { label: '화면 가득 채움', icon: '🖥️', notice: '🖥️ 화면 가득 채움 모드 (풀스크린 뷰)' },
+    landscape: { label: '4:3 스튜디오', icon: '📷', notice: '📷 4:3 스튜디오 모드 (와이드 뷰)' }
+  };
+  state.cameraRatio = 'portrait';
+
+  function updateRatioUI() {
+    const vf = $('#viewfinderFrame');
+    const label = $('#ratioLabel');
+    const icon = $('#ratioIcon');
+    if (!vf) return;
+
+    vf.classList.remove('ratio-portrait', 'ratio-full', 'ratio-landscape');
+    vf.classList.add(`ratio-${state.cameraRatio}`);
+
+    const cfg = ratioConfig[state.cameraRatio] || ratioConfig.portrait;
+    if (label) label.textContent = cfg.label;
+    if (icon) icon.textContent = cfg.icon;
+  }
+
+  $('#ratioToggleBtn')?.addEventListener('click', () => {
+    const currIdx = ratioOrder.indexOf(state.cameraRatio);
+    const nextIdx = (currIdx + 1) % ratioOrder.length;
+    state.cameraRatio = ratioOrder[nextIdx];
+    updateRatioUI();
+    const cfg = ratioConfig[state.cameraRatio];
+    showNotice(cfg.notice);
+  });
+
   // PWA / App Mode Guide Modal Handlers
   const pwaModal = $('#pwaGuideModal');
   $('#appModeGuideBtn')?.addEventListener('click', () => {
