@@ -118,7 +118,8 @@
         colorStrength: colorStrength,
         paperStrength: paperStrength,
         paperTint: preset.paperTint,
-        seed: options.seed || 'group-sketch-stable-seed'
+        seed: options.seed || 'group-sketch-stable-seed',
+        isFullFrame: (confidenceInfo.fallbackLevel === 3)
       }
     );
 

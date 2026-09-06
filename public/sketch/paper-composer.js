@@ -116,16 +116,23 @@
    */
   function composeSketch(colorField, classifiedEdges, mask, width, height, options) {
     options = options || {};
-    var ink = options.inkColor || [54, 49, 48];
+    var ink = options.inkColor || [44, 38, 36]; // Warm dip-pen espresso ink
     var lineStrength = (typeof options.lineStrength === 'number') ? options.lineStrength : 0.85;
     var colorStrength = (typeof options.colorStrength === 'number') ? options.colorStrength : 0.80;
     var paperStrength = (typeof options.paperStrength === 'number') ? options.paperStrength : 0.45;
-    var paperTint = options.paperTint || [247, 242, 230];
+    var paperTint = options.paperTint || [248, 245, 238];
     var seed = options.seed || 'sketch-seed';
+    var isFullFrame = options.isFullFrame || false;
 
     var paper = generatePaperTexture(width, height, paperTint, seed, paperStrength);
     var output = new Uint8ClampedArray(width * height * 4);
     var length = width * height;
+
+    // Precalculate vignette parameters if full frame mode
+    var cx = width * 0.50;
+    var cy = height * 0.48;
+    var rx = width * 0.48;
+    var ry = height * 0.49;
 
     for (var i = 0; i < length; i++) {
       var p = i * 4;
@@ -142,20 +149,39 @@
       var pg = paper[p + 1];
       var pb = paper[p + 2];
 
-      // Blend color field onto paper with colorStrength
-      var blendedR = pr + (cr - pr) * colorStrength;
-      var blendedG = pg + (cg - pg) * colorStrength;
-      var blendedB = pb + (cb - pb) * colorStrength;
+      // Luminous watercolor pigment boost
+      var wr = clamp(Math.round(cr * 1.04 + 6), 0, 255);
+      var wg = clamp(Math.round(cg * 1.02 + 4), 0, 255);
+      var wb = clamp(Math.round(cb * 1.01 + 2), 0, 255);
 
-      // Inks layer on top: output = simplifiedColorField * (1 - edgeAlpha) + inkColor * edgeAlpha
+      // Blend watercolor wash onto paper with colorStrength
+      var blendedR = pr + (wr - pr) * colorStrength;
+      var blendedG = pg + (wg - pg) * colorStrength;
+      var blendedB = pb + (wb - pb) * colorStrength;
+
+      // Wet ink layer: dip-pen ink interacts with watercolor pigment
       var finalR = blendedR * (1.0 - edgeAlpha) + ink[0] * edgeAlpha;
       var finalG = blendedG * (1.0 - edgeAlpha) + ink[1] * edgeAlpha;
       var finalB = blendedB * (1.0 - edgeAlpha) + ink[2] * edgeAlpha;
 
-      // Composite foreground onto paper base via fgAlpha
-      output[p] = clamp(Math.round(pr + (finalR - pr) * fgAlpha), 0, 255);
-      output[p + 1] = clamp(Math.round(pg + (finalG - pg) * fgAlpha), 0, 255);
-      output[p + 2] = clamp(Math.round(pb + (finalB - pb) * fgAlpha), 0, 255);
+      // If full frame fallback, add subtle watercolor vignette fade near outer borders
+      var effAlpha = fgAlpha;
+      if (isFullFrame && effAlpha >= 0.99) {
+        var pxCoord = i % width;
+        var pyCoord = Math.floor(i / width);
+        var dx = (pxCoord - cx) / rx;
+        var dy = (pyCoord - cy) / ry;
+        var dDist = Math.sqrt(dx * dx + dy * dy);
+        if (dDist > 0.72) {
+          effAlpha = clamp(1.0 - (dDist - 0.72) / 0.28, 0.0, 1.0);
+          effAlpha = Math.pow(effAlpha, 1.4);
+        }
+      }
+
+      // Composite foreground watercolor wash onto paper base
+      output[p] = clamp(Math.round(pr + (finalR - pr) * effAlpha), 0, 255);
+      output[p + 1] = clamp(Math.round(pg + (finalG - pg) * effAlpha), 0, 255);
+      output[p + 2] = clamp(Math.round(pb + (finalB - pb) * effAlpha), 0, 255);
       output[p + 3] = 255;
     }
 

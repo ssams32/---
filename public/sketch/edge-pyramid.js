@@ -79,7 +79,76 @@
   }
 
   /**
-   * Build 3-Scale Structural Edge Pyramid
+   * Fast 1D Separable Gaussian Blur
+   */
+  function gaussianBlur1D(src, width, height, sigma) {
+    var radius = Math.ceil(sigma * 2.5);
+    var size = radius * 2 + 1;
+    var kernel = new Float32Array(size);
+    var kSum = 0;
+    for (var i = -radius; i <= radius; i++) {
+      var v = Math.exp(-(i * i) / (2 * sigma * sigma));
+      kernel[i + radius] = v;
+      kSum += v;
+    }
+    for (var k = 0; k < size; k++) kernel[k] /= kSum;
+
+    var temp = new Float32Array(width * height);
+    var out = new Float32Array(width * height);
+
+    for (var y = 0; y < height; y++) {
+      var row = y * width;
+      for (var x = 0; x < width; x++) {
+        var sum = 0;
+        for (var ki = -radius; ki <= radius; ki++) {
+          var px = clamp(x + ki, 0, width - 1);
+          sum += src[row + px] * kernel[ki + radius];
+        }
+        temp[row + x] = sum;
+      }
+    }
+    for (var x2 = 0; x2 < width; x2++) {
+      for (var y2 = 0; y2 < height; y2++) {
+        var sum2 = 0;
+        for (var ki2 = -radius; ki2 <= radius; ki2++) {
+          var py = clamp(y2 + ki2, 0, height - 1);
+          sum2 += temp[py * width + x2] * kernel[ki2 + radius];
+        }
+        out[y2 * width + x2] = sum2;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Extended Difference of Gaussians (XDoG)
+   * Produces smooth, continuous, comic/manga hand-drawn ink linework with soft tapering.
+   */
+  function computeXDoG(lum, width, height, sigma, gamma, epsilon, phi) {
+    sigma = sigma || 1.0;
+    gamma = (typeof gamma === 'number') ? gamma : 0.98;
+    epsilon = (typeof epsilon === 'number') ? epsilon : -0.015;
+    phi = phi || 10.0;
+
+    var g1 = gaussianBlur1D(lum, width, height, sigma);
+    var g2 = gaussianBlur1D(lum, width, height, sigma * 1.6);
+    var length = width * height;
+    var lineArt = new Float32Array(length);
+
+    for (var i = 0; i < length; i++) {
+      var diff = g1[i] - gamma * g2[i];
+      if (diff < epsilon) {
+        lineArt[i] = 1.0;
+      } else {
+        var v = 1.0 + Math.tanh(phi * (diff - epsilon));
+        lineArt[i] = clamp(1.0 - v * 0.5, 0.0, 1.0);
+      }
+    }
+    return lineArt;
+  }
+
+  /**
+   * Build 3-Scale Structural Edge Pyramid with XDoG Linework
    * Section 15: Fine (0.20) + Medium (0.45) + Coarse (0.35)
    */
   function buildEdgePyramid(pixels, width, height, options) {
@@ -97,8 +166,11 @@
     // Coarse scale: 4px step
     var coarseEdge = computeGradient(lum, width, height, 4);
 
-    // Local variance for smooth region detection (skin & backdrop protection)
+    // Local variance for smooth region detection
     var variance = computeLocalVariance(lum, width, height, 2);
+
+    // High quality XDoG hand-drawn linework
+    var xdogLines = computeXDoG(lum, width, height, 0.95, 0.98, -0.015, 10.0);
 
     var length = width * height;
     var blended = new Float32Array(length);
@@ -110,9 +182,9 @@
       var c = coarseEdge[i];
       var v = variance[i];
 
-      // Suppress fine edge in smooth low-variance regions (Section 17: Facial protection without ML face detection)
+      // Suppress fine edge in smooth low-variance regions
       if (v < 0.0012) {
-        f *= 0.15; // heavily attenuate fine noise in smooth skin
+        f *= 0.15;
       } else if (v < 0.003) {
         f *= 0.45;
       }
@@ -121,18 +193,20 @@
       blended[i] = structuralMag;
 
       // Section 16: Edge Importance Classification
-      // PRIMARY: > 0.35 -> rendered at 0.85 ~ 1.00
-      // SECONDARY: 0.15 ~ 0.35 -> rendered at 0.45 ~ 0.75
-      // TEXTURE: < 0.15 -> rendered at 0.05 ~ 0.25
-      var lineAlpha = 0.0;
+      var rawAlpha = 0.0;
       if (structuralMag >= 0.35) {
-        lineAlpha = 0.85 + clamp((structuralMag - 0.35) * 0.3, 0.0, 0.15);
+        rawAlpha = 0.85 + clamp((structuralMag - 0.35) * 0.3, 0.0, 0.15);
       } else if (structuralMag >= 0.15) {
-        lineAlpha = 0.45 + ((structuralMag - 0.15) / 0.20) * 0.30;
+        rawAlpha = 0.45 + ((structuralMag - 0.15) / 0.20) * 0.30;
       } else if (structuralMag >= 0.06) {
-        lineAlpha = 0.05 + ((structuralMag - 0.06) / 0.09) * 0.20;
+        rawAlpha = 0.05 + ((structuralMag - 0.06) / 0.09) * 0.20;
       }
-      classified[i] = lineAlpha;
+
+      // XDoG clean linework weighting (suppress noise in ultra-smooth skin)
+      var xdogWeight = (v < 0.0010) ? 0.0 : (v < 0.0025 ? 0.5 : 1.0);
+      var xdogVal = xdogLines[i] * xdogWeight;
+
+      classified[i] = clamp(Math.max(rawAlpha, xdogVal), 0.0, 1.0);
     }
 
     return {
@@ -140,7 +214,8 @@
       classifiedEdges: classified,
       fineEdge: fineEdge,
       mediumEdge: mediumEdge,
-      coarseEdge: coarseEdge
+      coarseEdge: coarseEdge,
+      xdogLines: xdogLines
     };
   }
 
@@ -151,6 +226,8 @@
     return 'none';
   }
 
+  exports.gaussianBlur1D = gaussianBlur1D;
+  exports.computeXDoG = computeXDoG;
   exports.computeGradient = computeGradient;
   exports.buildEdgePyramid = buildEdgePyramid;
   exports.classifyEdge = classifyEdge;

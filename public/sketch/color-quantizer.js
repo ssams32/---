@@ -101,19 +101,106 @@
   }
 
   /**
-   * Quantize image pixels using the shared group palette
+   * Fast O(1) Integral Image Kuwahara Painterly Watercolor Filter
+   * Smooths micro-noise and pores into organic watercolor/gouache planes
+   * while preserving and snapping to structural boundaries.
+   */
+  function kuwaharaFilter(src, width, height, radius) {
+    var length = width * height;
+    radius = Math.max(1, Math.min(8, radius || 3));
+
+    var lum = new Float32Array(length);
+    for (var i = 0; i < length; i++) {
+      var p = i * 4;
+      lum[i] = (0.299 * src[p] + 0.587 * src[p + 1] + 0.114 * src[p + 2]);
+    }
+
+    var stride = width + 1;
+    var intR = new Float64Array(stride * (height + 1));
+    var intG = new Float64Array(stride * (height + 1));
+    var intB = new Float64Array(stride * (height + 1));
+    var intL = new Float64Array(stride * (height + 1));
+    var intL2 = new Float64Array(stride * (height + 1));
+
+    for (var y = 0; y < height; y++) {
+      var rowR = 0, rowG = 0, rowB = 0, rowL = 0, rowL2 = 0;
+      var yStride = (y + 1) * stride;
+      var prevYStride = y * stride;
+      var srcRow = y * width;
+      for (var x = 0; x < width; x++) {
+        var sp = (srcRow + x) * 4;
+        var r = src[sp], g = src[sp + 1], b = src[sp + 2], l = lum[srcRow + x];
+        rowR += r; rowG += g; rowB += b; rowL += l; rowL2 += l * l;
+        var idx = yStride + (x + 1);
+        var prevIdx = prevYStride + (x + 1);
+        intR[idx] = intR[prevIdx] + rowR;
+        intG[idx] = intG[prevIdx] + rowG;
+        intB[idx] = intB[prevIdx] + rowB;
+        intL[idx] = intL[prevIdx] + rowL;
+        intL2[idx] = intL2[prevIdx] + rowL2;
+      }
+    }
+
+    function getRegion(intTable, x1, y1, x2, y2) {
+      x1 = Math.max(0, Math.min(width, x1)); y1 = Math.max(0, Math.min(height, y1));
+      x2 = Math.max(0, Math.min(width, x2)); y2 = Math.max(0, Math.min(height, y2));
+      return intTable[y2 * stride + x2] - intTable[y1 * stride + x2] - intTable[y2 * stride + x1] + intTable[y1 * stride + x1];
+    }
+
+    var out = new Uint8ClampedArray(length * 4);
+    for (var cy = 0; cy < height; cy++) {
+      for (var cx = 0; cx < width; cx++) {
+        var regions = [
+          [cx - radius, cy - radius, cx + 1, cy + 1],
+          [cx, cy - radius, cx + radius + 1, cy + 1],
+          [cx - radius, cy, cx + 1, cy + radius + 1],
+          [cx, cy, cx + radius + 1, cy + radius + 1]
+        ];
+        var minVar = Infinity;
+        var op = (cy * width + cx) * 4;
+        var bestR = src[op];
+        var bestG = src[op + 1];
+        var bestB = src[op + 2];
+
+        for (var q = 0; q < 4; q++) {
+          var reg = regions[q];
+          var x1 = reg[0], y1 = reg[1], x2 = reg[2], y2 = reg[3];
+          var count = (x2 - x1) * (y2 - y1);
+          if (count <= 0) continue;
+          var sumL = getRegion(intL, x1, y1, x2, y2);
+          var sumL2 = getRegion(intL2, x1, y1, x2, y2);
+          var meanL = sumL / count;
+          var variance = (sumL2 / count) - (meanL * meanL);
+          if (variance < minVar) {
+            minVar = variance;
+            bestR = getRegion(intR, x1, y1, x2, y2) / count;
+            bestG = getRegion(intG, x1, y1, x2, y2) / count;
+            bestB = getRegion(intB, x1, y1, x2, y2) / count;
+          }
+        }
+        out[op] = clamp(Math.round(bestR), 0, 255);
+        out[op + 1] = clamp(Math.round(bestG), 0, 255);
+        out[op + 2] = clamp(Math.round(bestB), 0, 255);
+        out[op + 3] = src[op + 3] || 255;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Quantize image pixels using 2-pass Kuwahara watercolor smoothing and shared group palette
    * @param {Uint8ClampedArray} pixels - RGBA buffer
    * @param {Float32Array} mask - Foreground alpha mask
    * @param {number} width - Width
    * @param {number} height - Height
    * @param {number} paletteSize - Number of palette colors (16 to 32)
-   * @returns {Uint8ClampedArray} Simplified color field buffer
+   * @returns {object} { simplifiedPixels, palette, painterlyPixels }
    */
   function quantizeColorField(pixels, mask, width, height, paletteSize) {
     paletteSize = Math.max(16, Math.min(32, paletteSize || 24));
     var length = width * height;
 
-    // 1. Gather representative foreground sample colors (stride sampling for speed)
+    // 1. Gather representative foreground sample colors
     var samples = [];
     var stride = Math.max(1, Math.floor(length / 5000));
     for (var i = 0; i < length; i += stride) {
@@ -123,53 +210,52 @@
     }
 
     if (samples.length === 0) {
-      // Fallback: sample all pixels
       for (var k = 0; k < length; k += stride) {
         var pk = k * 4;
         samples.push([pixels[pk], pixels[pk + 1], pixels[pk + 2]]);
       }
     }
 
-    // 2. Build shared group palette
     var palette = buildSharedPalette(samples, paletteSize);
 
-    // 3. Fast mapping of pixels to closest palette color
-    var out = new Uint8ClampedArray(length * 4);
+    // 2. Two-Pass Kuwahara Painterly Watercolor Smoothing
+    var r1 = 3;
+    var r2 = 2;
+    if (width > 800 || height > 600) {
+      r1 = 4;
+      r2 = 3;
+    }
+    var pass1 = kuwaharaFilter(pixels, width, height, r1);
+    var pass2 = kuwaharaFilter(pass1, width, height, r2);
 
+    // 3. Watercolor Luminous Pigment Boost
+    var out = new Uint8ClampedArray(length * 4);
     for (var j = 0; j < length; j++) {
       var pIdx = j * 4;
-      var r = pixels[pIdx];
-      var g = pixels[pIdx + 1];
-      var b = pixels[pIdx + 2];
+      var r = pass2[pIdx];
+      var g = pass2[pIdx + 1];
+      var b = pass2[pIdx + 2];
 
-      var bestDist = Infinity;
-      var bestCol = palette[0];
+      r = clamp(Math.round(r * 1.05 + 8), 0, 255);
+      g = clamp(Math.round(g * 1.03 + 6), 0, 255);
+      b = clamp(Math.round(b * 1.01 + 4), 0, 255);
 
-      for (var c = 0; c < palette.length; c++) {
-        var pal = palette[c];
-        var dr = r - pal[0];
-        var dg = g - pal[1];
-        var db = b - pal[2];
-        var d = dr * dr + dg * dg + db * db;
-        if (d < bestDist) {
-          bestDist = d;
-          bestCol = pal;
-        }
-      }
-
-      out[pIdx] = bestCol[0];
-      out[pIdx + 1] = bestCol[1];
-      out[pIdx + 2] = bestCol[2];
-      out[pIdx + 3] = pixels[pIdx + 3];
+      out[pIdx] = r;
+      out[pIdx + 1] = g;
+      out[pIdx + 2] = b;
+      out[pIdx + 3] = pixels[pIdx + 3] || 255;
     }
 
     return {
       simplifiedPixels: out,
-      palette: palette
+      palette: palette,
+      painterlyPixels: out
     };
   }
 
+  exports.kuwaharaFilter = kuwaharaFilter;
   exports.buildSharedPalette = buildSharedPalette;
   exports.quantizeColorField = quantizeColorField;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.ColorQuantizer = {}));
+
