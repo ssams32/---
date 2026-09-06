@@ -314,43 +314,57 @@
             </div>
           </div>
 
-          <!-- Quick Action Bar under Preview -->
+          <!-- Quick Action Bar under Preview (Prominent Golden Ratio Position) -->
           <div class="filter-quick-bar">
-            <button type="button" class="btn-filter-action" id="btnApplyAllFilters">
+            <button type="button" class="btn-filter-action btn-apply-all-prominent" id="btnApplyAllFilters" title="모든 사진에 이 필터를 한 번에 적용합니다">
               <span class="btn-icon">✦</span>
-              <span>4장 전체 동일 적용</span>
+              <span>4장 모두 똑같이 적용하기</span>
             </button>
-            <button type="button" class="btn-filter-action" id="btnResetActiveFilter">
-              <span>이 사진 원래대로</span>
+            <button type="button" class="btn-filter-action" id="btnResetActiveFilter" title="현재 선택한 사진만 원래대로 되돌립니다">
+              <span>이 사진만 원본으로</span>
             </button>
-            <button type="button" class="btn-filter-action" id="btnResetAllFilters">
-              <span>전체 원래대로</span>
+            <button type="button" class="btn-filter-action" id="btnResetAllFilters" title="모든 사진을 원본으로 되돌립니다">
+              <span>전체 원본으로</span>
             </button>
           </div>
         </div>
 
-        <!-- Right: Filter Selection & Adjustments (38%) -->
+        <!-- Right: Filter Selection & Adjustments (Golden Ratio Control Pane) -->
         <div class="filter-tool-pane">
-          <!-- Category Tabs -->
+          <!-- Easy Visual Guide Banner for Kids & Seniors -->
+          <div class="filter-guide-banner">
+            <span class="guide-icon">👆</span>
+            <span class="guide-text"><strong>사진을 터치</strong>하고 마음에 드는 <strong>필터를 톡!</strong> 눌러보세요</span>
+          </div>
+
+          <!-- Category Tabs (Large Tactile Pills) -->
           <div class="filter-category-track" id="filterCategoryTrack" role="tablist" aria-label="필터 카테고리">
             <!-- Rendered by app.js: 추천, 내추럴, 화사, 웜톤, 쿨톤, 필름, 모노 -->
           </div>
 
-          <!-- Horizontal Cards Tray -->
+          <!-- Horizontal Cards Tray (Large, High Contrast Touch Cards) -->
           <div class="filter-cards-scroller" id="filterCardsScroller" role="radiogroup" aria-label="필터 목록">
             <!-- Filter cards rendered dynamically by app.js -->
           </div>
 
-          <!-- Filter Intensity Slider -->
+          <!-- Filter Intensity Control: 1-Touch Quick Buttons + Big Tactile Slider -->
           <div class="filter-slider-card">
             <div class="slider-header-row">
-              <label for="filterIntensitySlider" class="slider-title">필터 농도</label>
+              <label for="filterIntensitySlider" class="slider-title">필터 강도 (색감 진하기)</label>
               <span class="slider-value-badge" id="filterIntensityBadge">100%</span>
             </div>
-            <input type="range" id="filterIntensitySlider" class="kiosk-range-slider" min="0" max="100" value="100">
+
+            <!-- 1-Touch Preset Buttons for Kids & Seniors -->
+            <div class="filter-intensity-quick-row" id="intensityQuickRow" role="group" aria-label="필터 강도 빠른 선택">
+              <button type="button" class="btn-intensity-preset" data-intensity="0">🌱 원본 (0%)</button>
+              <button type="button" class="btn-intensity-preset" data-intensity="50">✨ 은은하게 (50%)</button>
+              <button type="button" class="btn-intensity-preset active" data-intensity="100">🌸 선명하게 (100%)</button>
+            </div>
+
+            <input type="range" id="filterIntensitySlider" class="kiosk-range-slider" min="0" max="100" value="100" aria-label="필터 강도 조절 슬라이더">
             <div class="slider-ticks-row">
               <span>0% (원본)</span>
-              <span>50%</span>
+              <span>50% (자연스러움)</span>
               <span>100% (완전 적용)</span>
             </div>
           </div>
@@ -407,31 +421,31 @@
           <!-- Primary Action Dock -->
           <div class="filter-nav-dock">
             <button type="button" class="btn-kiosk-secondary" id="btnFilterBack">‹ 사진 다시 고르기</button>
-            <button type="button" class="btn-kiosk-primary" id="btnFilterNext">스티커로 꾸미기 ›</button>
+            <button type="button" class="btn-kiosk-primary btn-kiosk-cta-giant" id="btnFilterNext">🎨 스티커로 꾸미기 ›</button>
           </div>
         </div>
       </div>
     </section>
 
     <!-- =============================================================
-         13. SCREEN 5: STICKER EDITOR (64% WORKSPACE : 36% TOOL PANEL)
+         13. SCREEN 5: STICKER EDITOR (GOLDEN RATIO: 44% WORKSPACE : 56% TOOL PANEL)
          ============================================================= -->
     <section id="edit" class="screen" aria-labelledby="editorHeading">
       <div class="editor-split-layout">
-        <!-- Left: Large 4-Cut Editor Workspace (64%) -->
+        <!-- Left: Large 4-Cut Editor Workspace (44%) -->
         <div class="editor-workspace-pane">
           <div id="stripPreview" class="stripPreview" aria-label="네 컷 사진 편집 영역"></div>
         </div>
 
-        <!-- Right: Tool Panel (36%) -->
+        <!-- Right: Tool Panel (56%) -->
         <div class="editor-tool-pane">
           <div>
             <div class="frame-theme-bar">
-              <span class="theme-bar-label">프레임 테마:</span>
+              <span class="theme-bar-label">프레임 색상:</span>
               <div class="theme-chips-row" id="themeSelector" role="radiogroup" aria-label="프레임 색상 선택"></div>
             </div>
 
-            <div class="active-target-banner" id="activePhotoLabel">사진을 터치하여 스티커를 부착하세요</div>
+            <div class="active-target-banner" id="activePhotoLabel">👉 <strong>사진을 먼저 톡!</strong> 누른 뒤 스티커를 골라주세요</div>
 
             <!-- Sticker Category Tabs (너우리 4종 + 20주년 탭) -->
             <div class="sticker-category-tabs" id="stickerCategoryTabs" role="tablist"></div>
@@ -439,19 +453,19 @@
             <!-- 62x62px Sticker Button Grid (72종 너우리 스티커 유지) -->
             <div class="sticker-tray-grid" id="stickers" role="tabpanel"></div>
 
-            <!-- Sticker Manipulation Tool Bar -->
+            <!-- Sticker Manipulation Tool Bar (Large Tactile Buttons for Kids & Seniors) -->
             <div class="sticker-controls-bar">
-              <button id="smaller" class="btn-sticker-tool" title="스티커 크기 축소">작게 −</button>
-              <button id="rotate" class="btn-sticker-tool" title="스티커 회전">회전 ↻</button>
-              <button id="bigger" class="btn-sticker-tool" title="스티커 크기 확대">크게 ＋</button>
-              <button id="deleteSticker" class="btn-sticker-tool btn-delete" title="선택한 스티커 삭제">삭제 ✕</button>
+              <button id="bigger" class="btn-sticker-tool btn-tool-zoom" title="스티커 크기 확대">➕ 크게</button>
+              <button id="smaller" class="btn-sticker-tool btn-tool-zoom" title="스티커 크기 축소">➖ 작게</button>
+              <button id="rotate" class="btn-sticker-tool btn-tool-rotate" title="스티커 회전">🔄 돌리기</button>
+              <button id="deleteSticker" class="btn-sticker-tool btn-delete" title="선택한 스티커 삭제">🗑️ 삭제</button>
             </div>
           </div>
 
           <!-- Bottom Footer Dock -->
           <div class="editor-footer-dock">
             <button class="btn-kiosk-secondary" id="backSelectBtn">‹ 사진 다시 선택</button>
-            <button class="btn-kiosk-primary" id="finishBtn">마음 네컷 완성하기 ›</button>
+            <button class="btn-kiosk-primary btn-kiosk-cta-giant" id="finishBtn">✨ 마음 네컷 완성하기 ›</button>
           </div>
         </div>
       </div>

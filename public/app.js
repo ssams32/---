@@ -791,11 +791,14 @@
       c.setAttribute('aria-pressed', match ? 'true' : 'false');
     });
 
-    // Sync intensity slider
+    // Sync intensity slider & quick preset buttons
     const intensitySlider = $('#filterIntensitySlider');
     const intensityBadge = $('#filterIntensityBadge');
     if (intensitySlider) intensitySlider.value = fs.intensity;
     if (intensityBadge) intensityBadge.textContent = `${fs.intensity}%`;
+    $$('.btn-intensity-preset').forEach((btn) => {
+      btn.classList.toggle('active', Number(btn.dataset.intensity) === fs.intensity);
+    });
 
     // Sync manual adjustment sliders
     const adj = fs.adjustments || {};
@@ -890,6 +893,10 @@
 
     const badge = $('#filterIntensityBadge');
     if (badge) badge.textContent = `${fs.intensity}%`;
+
+    $$('.btn-intensity-preset').forEach((btn) => {
+      btn.classList.toggle('active', Number(btn.dataset.intensity) === fs.intensity);
+    });
 
     clearTimeout(intensityDebounceTimer);
     intensityDebounceTimer = setTimeout(() => {
@@ -1745,6 +1752,15 @@
 
   $('#filterIntensitySlider')?.addEventListener('input', (e) => {
     updateActiveSlotIntensity(e.target.value);
+  });
+
+  $$('.btn-intensity-preset').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const val = Number(btn.dataset.intensity);
+      const slider = $('#filterIntensitySlider');
+      if (slider) slider.value = val;
+      updateActiveSlotIntensity(val);
+    });
   });
 
   $('#inputManualBrightness')?.addEventListener('input', (e) => {
