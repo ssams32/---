@@ -46,13 +46,14 @@
     photoSketch: new Map(), // photoId -> SketchState { effectId, lineStrength, colorStrength, paperStrength, backgroundWashStrength, forceFullFrame, protectBlueStrength, lastDiagnostics }
     cameraFilterId: 'original',
     activeFilterSlotIndex: 0,
+    filterApplyMode: 'all',
     activeFilterCategory: 'recommended',
     activePhotoId: null,
     activeStickerId: null,
     activeCategory: CFG.stickers?.categories?.[0]?.id || 'icheon_20th',
     currentThemeId: 'classic_light',
     currentFilterId: 'original',
-    editorMode: 'zoomed',
+    editorMode: 'strip',
     csrf: null,
     runId: 0,
     idleTimer: null,
@@ -743,6 +744,7 @@
   }
 
   function initFilterStage() {
+    state.filterApplyMode = 'all';
     state.activeFilterSlotIndex = 0;
     state.activeFilterCategory = 'recommended';
 
@@ -751,10 +753,80 @@
       getPhotoFilter(photoId);
     });
 
+    renderFilterPhotoTabs();
+    renderFilterThemeSelector();
     renderFilterCategoryTabs();
     renderFilterCardsTray();
+    updateFilterMockupTheme();
     selectActiveFilterSlot(0);
     renderAllFilterSlots();
+  }
+
+  function renderFilterPhotoTabs() {
+    const bar = $('#filterPhotoTabBar');
+    if (!bar) return;
+    bar.querySelectorAll('.filter-photo-tab').forEach((tab) => {
+      const target = tab.dataset.target;
+      const isActive = (state.filterApplyMode === 'all' && target === 'all') ||
+                       (state.filterApplyMode === 'single' && Number(target) === state.activeFilterSlotIndex);
+      tab.classList.toggle('active', isActive);
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+  }
+
+  function setFilterPhotoTarget(target) {
+    const badge = $('#filterActiveSlotBadge');
+    if (target === 'all') {
+      state.filterApplyMode = 'all';
+      if (badge) badge.textContent = '✨ 4장 전체 적용 모드';
+      $$('#filterQuadSlots .filter-slot-card').forEach((s) => s.classList.add('active'));
+    } else {
+      state.filterApplyMode = 'single';
+      const idx = Number(target);
+      selectActiveFilterSlot(idx);
+    }
+    renderFilterPhotoTabs();
+    renderFilterCardsTray();
+  }
+
+  function renderFilterThemeSelector() {
+    const row = $('#filterThemeSelector');
+    if (!row) return;
+    row.replaceChildren();
+
+    Object.entries(CFG.themes || {}).forEach(([key, theme]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `theme-chip ${key === state.currentThemeId ? 'selected' : ''}`;
+      btn.style.background = theme.backgroundColor || '#FFFDF9';
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', key === state.currentThemeId ? 'true' : 'false');
+      btn.setAttribute('title', theme.name || key);
+      btn.setAttribute('aria-label', theme.name || key);
+
+      btn.onclick = () => {
+        state.currentThemeId = key;
+        updateFilterMockupTheme();
+        renderFilterThemeSelector();
+        renderThemeSelector();
+      };
+      row.append(btn);
+    });
+  }
+
+  function updateFilterMockupTheme() {
+    const mockup = $('#filterMockupFrame');
+    const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
+    if (mockup) {
+      mockup.style.background = theme.backgroundColor || '#FFFDF9';
+      mockup.style.color = theme.textColor || '#211C29';
+      const title = mockup.querySelector('.fm-title');
+      if (title) title.style.color = theme.textColor || '#211C29';
+      const subtitle = mockup.querySelector('.fm-subtitle');
+      if (subtitle) subtitle.style.color = theme.accentColor || '#8E72D8';
+      const footer = mockup.querySelector('.filter-mockup-footer span');
+      if (footer) footer.style.color = theme.textColor || '#211C29';
+    }
   }
 
   function renderFilterCategoryTabs() {
@@ -871,11 +943,14 @@
     state.activeFilterSlotIndex = slotIndex;
     const quadSlots = $$('#filterQuadSlots .filter-slot-card');
     quadSlots.forEach((slot, idx) => {
-      slot.classList.toggle('active', idx === slotIndex);
+      slot.classList.toggle('active', state.filterApplyMode === 'all' || idx === slotIndex);
     });
 
     const badge = $('#filterActiveSlotBadge');
-    if (badge) badge.textContent = `${slotIndex + 1}번 사진 선택됨`;
+    if (badge) {
+      badge.textContent = state.filterApplyMode === 'all' ? '✨ 4장 전체 적용 모드' : `${slotIndex + 1}번 사진 선택됨`;
+    }
+    renderFilterPhotoTabs();
 
     const photoId = state.selected[slotIndex];
     if (!photoId) return;
@@ -1033,15 +1108,28 @@
   }
 
   function applyFilterToActiveSlot(filterId) {
-    const photoId = state.selected[state.activeFilterSlotIndex];
-    if (!photoId) return;
+    if (state.filterApplyMode === 'all') {
+      state.selected.forEach((photoId) => {
+        const fs = getPhotoFilter(photoId);
+        fs.filterId = filterId;
+        setPhotoFilter(photoId, fs);
+        if (isSketchFilter(filterId)) {
+          getPhotoSketchState(photoId, filterId);
+        }
+      });
+      renderAllFilterSlots();
+    } else {
+      const photoId = state.selected[state.activeFilterSlotIndex];
+      if (!photoId) return;
 
-    const fs = getPhotoFilter(photoId);
-    fs.filterId = filterId;
-    setPhotoFilter(photoId, fs);
+      const fs = getPhotoFilter(photoId);
+      fs.filterId = filterId;
+      setPhotoFilter(photoId, fs);
 
-    if (isSketchFilter(filterId)) {
-      getPhotoSketchState(photoId, filterId);
+      if (isSketchFilter(filterId)) {
+        getPhotoSketchState(photoId, filterId);
+      }
+      renderFilterSlot(state.activeFilterSlotIndex);
     }
 
     // Update UI
@@ -1053,7 +1141,6 @@
     });
 
     selectActiveFilterSlot(state.activeFilterSlotIndex);
-    renderFilterSlot(state.activeFilterSlotIndex);
   }
 
   let intensityDebounceTimer = null;
@@ -1278,7 +1365,7 @@
   }
 
   function renderDecorationEditor() {
-    state.editorMode = 'zoomed'; // Default to auto-zoomed single photo mode
+    state.editorMode = 'strip'; // Default to full-frame 4-cut live preview
     if (!state.activePhotoId || !state.selected.includes(state.activePhotoId)) {
       state.activePhotoId = state.selected[0];
     }
@@ -1308,15 +1395,16 @@
     const icon = $('#editorModeIcon');
 
     if (zoomedContainer) zoomedContainer.style.display = isZoomed ? 'flex' : 'none';
-    if (stripContainer) stripContainer.style.display = isZoomed ? 'none' : 'flex';
+    if (stripContainer) stripContainer.style.display = isZoomed ? 'flex' : 'none';
 
-    if (label) label.textContent = isZoomed ? '전체 네컷 보기' : '한 장 크게 꾸미기';
-    if (icon) icon.textContent = isZoomed ? '🔍' : '🖼️';
+    if (label) label.textContent = isZoomed ? '🖼️ 전체 네컷 보기' : '🔍 1장 크게 꾸미기';
+    if (icon) icon.textContent = isZoomed ? '🖼️' : '🔍';
   }
 
   function toggleEditorMode() {
     state.editorMode = state.editorMode === 'zoomed' ? 'strip' : 'zoomed';
     updateEditorModeUI();
+    renderPhotoNavRail();
     if (state.editorMode === 'zoomed') {
       renderZoomedPhotoCard();
     } else {
@@ -1329,14 +1417,32 @@
     if (!rail) return;
     rail.replaceChildren();
 
+    // 0. Full Frame Preview Tab
+    const fullFrameBtn = document.createElement('button');
+    fullFrameBtn.type = 'button';
+    const isFullActive = state.editorMode === 'strip';
+    fullFrameBtn.className = `photo-tab-chip ${isFullActive ? 'active' : ''}`;
+    fullFrameBtn.setAttribute('role', 'tab');
+    fullFrameBtn.setAttribute('aria-selected', isFullActive ? 'true' : 'false');
+    fullFrameBtn.setAttribute('aria-label', '전체 네컷 프레임 미리보기');
+    fullFrameBtn.innerHTML = `<span>🖼️ 전체 프레임 보기</span>`;
+    fullFrameBtn.addEventListener('click', () => {
+      state.editorMode = 'strip';
+      updateEditorModeUI();
+      renderStripPreview();
+      renderPhotoNavRail();
+    });
+    rail.append(fullFrameBtn);
+
+    // 1..4 Individual Photo Zoom Tabs
     state.selected.forEach((photoId, idx) => {
-      const isActive = photoId === state.activePhotoId;
+      const isActive = state.editorMode === 'zoomed' && photoId === state.activePhotoId;
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = `photo-tab-chip ${isActive ? 'active' : ''}`;
       chip.setAttribute('role', 'tab');
       chip.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      chip.setAttribute('aria-label', `${idx + 1}번 사진 편집하기`);
+      chip.setAttribute('aria-label', `${idx + 1}번 사진 크게 편집하기`);
 
       const count = (ensureStickerList(photoId) || []).length;
       chip.innerHTML = `
@@ -1345,6 +1451,7 @@
       `;
 
       chip.addEventListener('click', () => {
+        state.editorMode = 'zoomed';
         selectActivePhoto(photoId);
       });
       rail.append(chip);
@@ -1364,6 +1471,16 @@
 
     const photoId = state.activePhotoId;
     if (!photoId) return;
+
+    // Outer background reflects frame theme
+    const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
+    const zoomedContainer = $('#zoomedEditorContainer');
+    if (zoomedContainer) {
+      zoomedContainer.style.background = theme.backgroundColor || '#FFFDF9';
+      zoomedContainer.style.padding = '12px';
+      zoomedContainer.style.borderRadius = '18px';
+      zoomedContainer.style.border = '1px solid var(--color-border)';
+    }
 
     card.dataset.photoId = photoId;
     const shot = state.shots.find((s) => s.id === photoId);
@@ -1401,7 +1518,62 @@
     }
 
     renderPhotoStickers(photoId);
+    renderZoomedMiniStrip();
     updateActivePhotoBanner();
+  }
+
+  function renderZoomedMiniStrip() {
+    const strip = $('#zoomedMiniStrip');
+    if (!strip) return;
+    strip.replaceChildren();
+
+    const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
+    strip.style.background = theme.backgroundColor || '#FFFDF9';
+    strip.style.padding = '8px';
+    strip.style.borderRadius = '14px';
+
+    state.selected.forEach((photoId, idx) => {
+      const isCurrent = photoId === state.activePhotoId;
+      const card = document.createElement('div');
+      card.className = `zoomed-mini-card ${isCurrent ? 'active' : ''}`;
+      card.setAttribute('role', 'tab');
+      card.setAttribute('aria-selected', isCurrent ? 'true' : 'false');
+      card.setAttribute('title', `${idx + 1}번 사진 편집`);
+
+      const miniCanvas = document.createElement('canvas');
+      miniCanvas.width = 160;
+      miniCanvas.height = 120;
+      const shot = state.shots.find((s) => s.id === photoId);
+      if (shot) {
+        loadHtmlImage(shot.url).then((imgEl) => {
+          const ctx = miniCanvas.getContext('2d');
+          drawCover(ctx, imgEl, 0, 0, 160, 120);
+        }).catch(() => {});
+      }
+      card.append(miniCanvas);
+
+      const badge = document.createElement('div');
+      badge.className = 'zoomed-mini-card-badge';
+      badge.textContent = String(idx + 1);
+      card.append(badge);
+
+      const count = (ensureStickerList(photoId) || []).length;
+      if (count > 0) {
+        const sBadge = document.createElement('div');
+        sBadge.className = 'tab-sticker-badge';
+        sBadge.style.position = 'absolute';
+        sBadge.style.bottom = '4px';
+        sBadge.style.right = '4px';
+        sBadge.textContent = String(count);
+        card.append(sBadge);
+      }
+
+      card.addEventListener('click', () => {
+        selectActivePhoto(photoId);
+      });
+
+      strip.append(card);
+    });
   }
 
   function navigatePhoto(direction) {
@@ -1429,8 +1601,20 @@
         const preview = $('#stripPreview');
         if (preview) {
           preview.style.background = theme.backgroundColor || '#FFFDF9';
+          preview.style.color = theme.textColor || '#211C29';
+          const title = preview.querySelector('.fm-title');
+          if (title) title.style.color = theme.textColor || '#211C29';
+          const footer = preview.querySelector('.strip-mockup-footer');
+          if (footer) footer.style.color = theme.textColor || '#211C29';
         }
+        const zoomedContainer = $('#zoomedEditorContainer');
+        if (zoomedContainer) {
+          zoomedContainer.style.background = theme.backgroundColor || '#FFFDF9';
+        }
+        updateFilterMockupTheme();
         renderThemeSelector();
+        renderFilterThemeSelector();
+        renderZoomedMiniStrip();
       };
       row.append(btn);
     });
@@ -1448,7 +1632,18 @@
 
     const theme = CFG.themes?.[state.currentThemeId] || CFG.themes?.classic_light || {};
     preview.style.background = theme.backgroundColor || '#FFFDF9';
+    preview.style.color = theme.textColor || '#211C29';
 
+    // 1. Frame Header
+    const header = document.createElement('div');
+    header.className = 'strip-mockup-header';
+    header.innerHTML = `
+      <span class="fm-title" style="color: ${theme.textColor || '#211C29'}; font-size: 13px; font-weight: 800;">${CFG.branding?.title || '이천시정신건강복지센터 20주년'}</span>
+      <span class="fm-subtitle" style="color: ${theme.accentColor || '#8E72D8'}; font-size: 11px; font-weight: 700;">MAEUM FOUR CUTS</span>
+    `;
+    preview.append(header);
+
+    // 2. Photo Grid (2x2)
     const grid = document.createElement('div');
     grid.className = 'strip-grid-2x2';
 
@@ -1457,6 +1652,13 @@
       const isActive = photoId === state.activePhotoId;
       cell.className = `strip-slot preview-cell ${isActive ? 'active active-photo' : ''}`;
       cell.dataset.photoId = photoId;
+      cell.setAttribute('title', `${index + 1}번 사진 터치하여 스티커 꾸미기`);
+
+      // Slot number badge
+      const badge = document.createElement('div');
+      badge.className = 'strip-slot-badge';
+      badge.textContent = String(index + 1);
+      cell.append(badge);
 
       const slotCanvas = document.createElement('canvas');
       slotCanvas.className = 'slot-photo';
@@ -1487,24 +1689,46 @@
       if (isActive) {
         const pill = document.createElement('div');
         pill.className = 'active-slot-pill';
-        pill.textContent = '꾸미는 중';
+        pill.textContent = '꾸미는 중 ✨';
         cell.append(pill);
       }
 
+      // Quick Zoom Button on each slot
+      const zoomBtn = document.createElement('button');
+      zoomBtn.type = 'button';
+      zoomBtn.className = 'btn-slot-zoom';
+      zoomBtn.textContent = '🔍 크게';
+      zoomBtn.setAttribute('title', `${index + 1}번 사진 크게 확대하여 꾸미기`);
+      zoomBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectActivePhoto(photoId);
+        state.editorMode = 'zoomed';
+        updateEditorModeUI();
+        renderZoomedPhotoCard();
+        renderPhotoNavRail();
+      });
+      cell.append(zoomBtn);
+
       cell.append(slotCanvas);
+
+      // Tap slot: Select active photo and STAY in full frame!
       cell.addEventListener('pointerdown', (e) => {
         if (e.target === cell || e.target === slotCanvas) {
           selectActivePhoto(photoId);
-          // Tap photo to auto-zoom into large editor
-          state.editorMode = 'zoomed';
-          updateEditorModeUI();
-          renderZoomedPhotoCard();
         }
       });
       grid.append(cell);
     });
 
     preview.append(grid);
+
+    // 3. Frame Footer
+    const footer = document.createElement('div');
+    footer.className = 'strip-mockup-footer';
+    footer.style.color = theme.textColor || '#211C29';
+    footer.textContent = '당신의 오늘을 늘 응원합니다 ✨';
+    preview.append(footer);
+
     state.selected.forEach((photoId) => renderPhotoStickers(photoId));
     updateActivePhotoBanner();
   }
@@ -1531,7 +1755,7 @@
         if (isActive && !pill) {
           const newPill = document.createElement('div');
           newPill.className = 'active-slot-pill';
-          newPill.textContent = '꾸미는 중';
+          newPill.textContent = '꾸미는 중 ✨';
           c.append(newPill);
         } else if (!isActive && pill) {
           pill.remove();
@@ -2189,7 +2413,8 @@
       zoomedCanvas.width = 1;
       zoomedCanvas.height = 1;
     }
-    state.editorMode = 'zoomed';
+    state.editorMode = 'strip';
+    state.filterApplyMode = 'all';
 
     show('start');
   }
@@ -2226,7 +2451,14 @@
   $$('#filterQuadSlots .filter-slot-card').forEach((slot) => {
     slot.addEventListener('click', () => {
       const idx = Number(slot.dataset.slot);
+      state.filterApplyMode = 'single';
       selectActiveFilterSlot(idx);
+    });
+  });
+
+  $$('#filterPhotoTabBar .filter-photo-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      setFilterPhotoTarget(tab.dataset.target);
     });
   });
 

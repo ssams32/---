@@ -30,31 +30,60 @@
   };
 
   /**
-   * Generate procedural deterministic paper texture
+   * Generate procedural deterministic cold-press watercolor paper texture
+   * Emulates cold-press cotton paper with gentle undulating cotton clouds (macro)
+   * and toothy fiber pockets (micro) that catch sedimenting watercolor pigment.
    */
   function generatePaperTexture(width, height, paperTint, seed, paperStrength) {
     var rng = new PRNG(seed || 'paper-texture-seed');
     var length = width * height;
     var paper = new Uint8ClampedArray(length * 4);
-    var baseR = paperTint[0] || 247;
-    var baseG = paperTint[1] || 242;
-    var baseB = paperTint[2] || 230;
+    var baseR = paperTint[0] || 250;
+    var baseG = paperTint[1] || 247;
+    var baseB = paperTint[2] || 238;
     var pStrength = (typeof paperStrength === 'number') ? paperStrength : 0.45;
-    var grainScale = 8.0 + (pStrength * 14.0);
+    var grainScale = 6.0 + (pStrength * 16.0);
 
-    for (var i = 0; i < length; i++) {
-      var p = i * 4;
-      // Gentle grain variation modulated by paperStrength
-      var n = (rng.next() - 0.5) * grainScale;
-      // Rare fibrous fleck
-      if (rng.next() < 0.003) {
-        n -= (16 + pStrength * 12);
+    // 1. Low-frequency undulating cotton fiber clouds (32x24 coarse grid)
+    var gridW = Math.max(4, Math.min(32, Math.floor(width / 16)));
+    var gridH = Math.max(4, Math.min(24, Math.floor(height / 16)));
+    var clouds = new Float32Array(gridW * gridH);
+    for (var ci = 0; ci < clouds.length; ci++) {
+      clouds[ci] = (rng.next() - 0.5) * (grainScale * 0.9);
+    }
+
+    // 2. High-frequency fiber tooth
+    for (var y = 0; y < height; y++) {
+      var gy = (y / Math.max(1, height - 1)) * (gridH - 1);
+      var y0 = Math.floor(gy);
+      var y1 = Math.min(gridH - 1, y0 + 1);
+      var fy = gy - y0;
+
+      for (var x = 0; x < width; x++) {
+        var gx = (x / Math.max(1, width - 1)) * (gridW - 1);
+        var x0 = Math.floor(gx);
+        var x1 = Math.min(gridW - 1, x0 + 1);
+        var fx = gx - x0;
+
+        var c00 = clouds[y0 * gridW + x0];
+        var c10 = clouds[y0 * gridW + x1];
+        var c01 = clouds[y1 * gridW + x0];
+        var c11 = clouds[y1 * gridW + x1];
+        var cloudVal = (c00 * (1 - fx) + c10 * fx) * (1 - fy) + (c01 * (1 - fx) + c11 * fx) * fy;
+
+        var microTooth = (rng.next() - 0.5) * grainScale;
+        // Rare cotton fleck
+        if (rng.next() < 0.002) {
+          microTooth -= (14 + pStrength * 10);
+        }
+
+        var totalGrain = cloudVal * 0.5 + microTooth * 0.6;
+        var p = (y * width + x) * 4;
+        paper[p] = clamp(Math.round(baseR + totalGrain), 0, 255);
+        paper[p + 1] = clamp(Math.round(baseG + totalGrain * 0.94), 0, 255);
+        paper[p + 2] = clamp(Math.round(baseB + totalGrain * 0.86), 0, 255);
+        paper[p + 3] = 255;
       }
-
-      paper[p] = clamp(Math.round(baseR + n), 0, 255);
-      paper[p + 1] = clamp(Math.round(baseG + n * 0.9), 0, 255);
-      paper[p + 2] = clamp(Math.round(baseB + n * 0.8), 0, 255);
-      paper[p + 3] = 255;
     }
     return paper;
   }
@@ -149,22 +178,32 @@
       var pg = paper[p + 1];
       var pb = paper[p + 2];
 
-      // Luminous watercolor pigment boost
-      var wr = clamp(Math.round(cr * 1.04 + 6), 0, 255);
-      var wg = clamp(Math.round(cg * 1.02 + 4), 0, 255);
-      var wb = clamp(Math.round(cb * 1.01 + 2), 0, 255);
+      var paperNormR = pr / 255.0;
+      var paperNormG = pg / 255.0;
+      var paperNormB = pb / 255.0;
 
-      // Blend watercolor wash onto paper with colorStrength
-      var blendedR = pr + (wr - pr) * colorStrength;
-      var blendedG = pg + (wg - pg) * colorStrength;
-      var blendedB = pb + (wb - pb) * colorStrength;
+      // Color field sample normalized
+      var pNormR = cr / 255.0;
+      var pNormG = cg / 255.0;
+      var pNormB = cb / 255.0;
 
-      // Wet ink layer: dip-pen ink interacts with watercolor pigment
-      var finalR = blendedR * (1.0 - edgeAlpha) + ink[0] * edgeAlpha;
-      var finalG = blendedG * (1.0 - edgeAlpha) + ink[1] * edgeAlpha;
-      var finalB = blendedB * (1.0 - edgeAlpha) + ink[2] * edgeAlpha;
+      // Subtractive Watercolor Glaze:
+      // Physically models light penetrating transparent pigment, reflecting off paper tooth,
+      // and re-emerging. White highlights are paper white; darks sink into paper crevices.
+      var glazeR = paperNormR * (1.0 - (1.0 - pNormR) * colorStrength);
+      var glazeG = paperNormG * (1.0 - (1.0 - pNormG) * colorStrength);
+      var glazeB = paperNormB * (1.0 - (1.0 - pNormB) * colorStrength);
 
-      // If full frame fallback, add subtle watercolor vignette fade near outer borders
+      // Dip-pen ink absorbed into paper fibers & watercolor wash
+      var inkNormR = ink[0] / 255.0;
+      var inkNormG = ink[1] / 255.0;
+      var inkNormB = ink[2] / 255.0;
+
+      var finalR = (glazeR * (1.0 - edgeAlpha) + inkNormR * paperNormR * edgeAlpha) * 255.0;
+      var finalG = (glazeG * (1.0 - edgeAlpha) + inkNormG * paperNormG * edgeAlpha) * 255.0;
+      var finalB = (glazeB * (1.0 - edgeAlpha) + inkNormB * paperNormB * edgeAlpha) * 255.0;
+
+      // If full frame fallback, add soft organic watercolor vignette fade near outer borders
       var effAlpha = fgAlpha;
       if (isFullFrame && effAlpha >= 0.99) {
         var pxCoord = i % width;
@@ -172,8 +211,8 @@
         var dx = (pxCoord - cx) / rx;
         var dy = (pyCoord - cy) / ry;
         var dDist = Math.sqrt(dx * dx + dy * dy);
-        if (dDist > 0.72) {
-          effAlpha = clamp(1.0 - (dDist - 0.72) / 0.28, 0.0, 1.0);
+        if (dDist > 0.65) {
+          effAlpha = clamp(1.0 - (dDist - 0.65) / 0.35, 0.0, 1.0);
           effAlpha = Math.pow(effAlpha, 1.4);
         }
       }

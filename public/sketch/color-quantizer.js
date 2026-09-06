@@ -188,13 +188,41 @@
   }
 
   /**
+   * Boost Watercolor Pigment Saturation & Clarity
+   * Emulates transparent watercolor pigment by increasing chroma in midtones
+   * while maintaining luminous paper highlights.
+   */
+  function boostWatercolorPigment(r, g, b) {
+    var max = Math.max(r, Math.max(g, b));
+    var min = Math.min(r, Math.min(g, b));
+    var delta = max - min;
+    var lum = (max + min) / 2;
+
+    if (delta === 0) return [r, g, b];
+
+    var sat = lum < 128 ? delta / (max + min) : delta / (510 - max - min);
+    var newSat = Math.min(1.0, sat * 1.25);
+    var boost = (newSat / sat);
+
+    var nr = clamp(Math.round(lum + (r - lum) * boost), 0, 255);
+    var ng = clamp(Math.round(lum + (g - lum) * boost), 0, 255);
+    var nb = clamp(Math.round(lum + (b - lum) * boost), 0, 255);
+
+    nr = clamp(Math.round(nr * 1.05 + 6), 0, 255);
+    ng = clamp(Math.round(ng * 1.03 + 4), 0, 255);
+    nb = clamp(Math.round(nb * 1.01 + 2), 0, 255);
+
+    return [nr, ng, nb];
+  }
+
+  /**
    * Quantize image pixels using 2-pass Kuwahara watercolor smoothing and shared group palette
    * @param {Uint8ClampedArray} pixels - RGBA buffer
    * @param {Float32Array} mask - Foreground alpha mask
    * @param {number} width - Width
    * @param {number} height - Height
    * @param {number} paletteSize - Number of palette colors (16 to 32)
-   * @returns {object} { simplifiedPixels, palette, painterlyPixels }
+   * @returns {object} { simplifiedPixels, palette, painterlyPixels, poolFringe }
    */
   function quantizeColorField(pixels, mask, width, height, paletteSize) {
     paletteSize = Math.max(16, Math.min(32, paletteSize || 24));
@@ -228,34 +256,55 @@
     var pass1 = kuwaharaFilter(pixels, width, height, r1);
     var pass2 = kuwaharaFilter(pass1, width, height, r2);
 
-    // 3. Watercolor Luminous Pigment Boost
+    // 3. Compute Pigment Pooling (Edge Darkening / Coffee-Ring Fringe)
+    var poolFringe = new Float32Array(length);
+    for (var y = 1; y < height - 1; y++) {
+      for (var x = 1; x < width - 1; x++) {
+        var idx = y * width + x;
+        var pL = (idx - 1) * 4;
+        var pR = (idx + 1) * 4;
+        var pU = (idx - width) * 4;
+        var pD = (idx + width) * 4;
+        var dx = Math.abs(pass2[pR] - pass2[pL]) + Math.abs(pass2[pR + 1] - pass2[pL + 1]) + Math.abs(pass2[pR + 2] - pass2[pL + 2]);
+        var dy = Math.abs(pass2[pD] - pass2[pU]) + Math.abs(pass2[pD + 1] - pass2[pU + 1]) + Math.abs(pass2[pD + 2] - pass2[pU + 2]);
+        var grad = (dx + dy) / (255.0 * 6.0);
+        if (grad > 0.04 && grad < 0.35) {
+          poolFringe[idx] = clamp((grad - 0.04) * 2.2, 0.0, 0.30);
+        }
+      }
+    }
+
+    // 4. Watercolor Luminous Pigment Boost
     var out = new Uint8ClampedArray(length * 4);
     for (var j = 0; j < length; j++) {
       var pIdx = j * 4;
-      var r = pass2[pIdx];
-      var g = pass2[pIdx + 1];
-      var b = pass2[pIdx + 2];
+      var boosted = boostWatercolorPigment(pass2[pIdx], pass2[pIdx + 1], pass2[pIdx + 2]);
 
-      r = clamp(Math.round(r * 1.05 + 8), 0, 255);
-      g = clamp(Math.round(g * 1.03 + 6), 0, 255);
-      b = clamp(Math.round(b * 1.01 + 4), 0, 255);
+      // Apply subtle pigment pooling darkening along boundaries
+      var pool = poolFringe[j];
+      var finalR = boosted[0] * (1.0 - pool * 0.45);
+      var finalG = boosted[1] * (1.0 - pool * 0.45);
+      var finalB = boosted[2] * (1.0 - pool * 0.40);
 
-      out[pIdx] = r;
-      out[pIdx + 1] = g;
-      out[pIdx + 2] = b;
+      out[pIdx] = clamp(Math.round(finalR), 0, 255);
+      out[pIdx + 1] = clamp(Math.round(finalG), 0, 255);
+      out[pIdx + 2] = clamp(Math.round(finalB), 0, 255);
       out[pIdx + 3] = pixels[pIdx + 3] || 255;
     }
 
     return {
       simplifiedPixels: out,
       palette: palette,
-      painterlyPixels: out
+      painterlyPixels: out,
+      poolFringe: poolFringe
     };
   }
 
   exports.kuwaharaFilter = kuwaharaFilter;
   exports.buildSharedPalette = buildSharedPalette;
+  exports.boostWatercolorPigment = boostWatercolorPigment;
   exports.quantizeColorField = quantizeColorField;
 
 })(typeof module !== 'undefined' && module.exports ? module.exports : (window.ColorQuantizer = {}));
+
 

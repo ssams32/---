@@ -264,7 +264,16 @@
               <h2 class="filter-title-heading" id="filterHeading">사진별 감성 필터를 입혀보세요</h2>
               <p class="filter-sub-heading">사진을 터치해 각각 다른 필터를 적용하거나 한 번에 통일할 수 있어요</p>
             </div>
-            <div class="filter-active-slot-pill" id="filterActiveSlotBadge">1번 사진 선택됨</div>
+            <div class="filter-active-slot-pill" id="filterActiveSlotBadge">✨ 4장 전체 적용 모드</div>
+          </div>
+
+          <!-- Photo Switcher Tabs: 4장 전체 / 1번 / 2번 / 3번 / 4번 -->
+          <div class="filter-photo-tab-bar" id="filterPhotoTabBar" role="tablist" aria-label="필터 적용 대상 사진">
+            <button type="button" class="filter-photo-tab active" data-target="all" role="tab" aria-selected="true">✨ 4장 전체 적용</button>
+            <button type="button" class="filter-photo-tab" data-target="0" role="tab" aria-selected="false">1번 사진</button>
+            <button type="button" class="filter-photo-tab" data-target="1" role="tab" aria-selected="false">2번 사진</button>
+            <button type="button" class="filter-photo-tab" data-target="2" role="tab" aria-selected="false">3번 사진</button>
+            <button type="button" class="filter-photo-tab" data-target="3" role="tab" aria-selected="false">4번 사진</button>
           </div>
 
           <div class="filter-quad-container" id="filterQuadContainer">
@@ -326,6 +335,12 @@
 
         <!-- Right: Filter Selection & Adjustments (Golden Ratio Control Pane) -->
         <div class="filter-tool-pane">
+          <!-- Frame Theme Selector for Instant 4-Cut Preview -->
+          <div class="frame-theme-bar filter-frame-bar">
+            <span class="theme-bar-label">🖼️ 프레임 색상:</span>
+            <div class="theme-chips-row" id="filterThemeSelector" role="radiogroup" aria-label="프레임 색상 선택"></div>
+          </div>
+
           <!-- Easy Visual Guide Banner for Kids & Seniors -->
           <div class="filter-guide-banner">
             <span class="guide-icon">👆</span>
@@ -472,12 +487,15 @@
             </div>
             <button type="button" class="btn-editor-mode-toggle" id="editorModeToggleBtn" title="전체 네컷 보기 / 한 장 크게 꾸미기 전환" aria-label="편집 화면 모드 전환">
               <span id="editorModeIcon">🔍</span>
-              <span id="editorModeLabel">전체 네컷 보기</span>
+              <span id="editorModeLabel">1장 크게 꾸미기</span>
             </button>
           </div>
 
-          <!-- Main Zoomed Single Photo Stage (Default: Auto-Zoomed Large View) -->
-          <div class="zoomed-editor-container" id="zoomedEditorContainer" aria-label="선택 사진 대형 편집 영역">
+          <!-- Classic 4-Cut Strip Preview (Default: Live 4-Cut Frame Preview) -->
+          <div id="stripPreview" class="stripPreview" aria-label="네 컷 사진 전체 미리보기"></div>
+
+          <!-- Main Zoomed Single Photo Stage (Shown when zoomed) -->
+          <div class="zoomed-editor-container" id="zoomedEditorContainer" aria-label="선택 사진 대형 편집 영역" style="display: none;">
             <div class="zoomed-photo-card preview-cell active active-photo" id="zoomedPhotoCard">
               <canvas class="slot-photo" id="zoomedCanvas"></canvas>
               <!-- Sticker nodes rendered here -->
@@ -490,10 +508,10 @@
               <span class="zoomed-photo-counter" id="zoomedPhotoCounter">1 / 4</span>
               <button type="button" class="btn-zoomed-nav" id="nextPhotoBtn" aria-label="다음 사진">다음 사진 ›</button>
             </div>
-          </div>
 
-          <!-- Classic 4-Cut Strip Preview (Shown when user toggles '전체 네컷 보기') -->
-          <div id="stripPreview" class="stripPreview" aria-label="네 컷 사진 전체 미리보기" style="display: none;"></div>
+            <!-- Mini 4-Cut Thumbnail Strip in Zoomed View -->
+            <div class="zoomed-mini-strip" id="zoomedMiniStrip" role="tablist" aria-label="네 컷 사진 빠른 이동"></div>
+          </div>
         </div>
 
         <!-- Right: Tool Panel (56%) -->
