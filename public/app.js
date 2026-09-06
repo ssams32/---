@@ -305,6 +305,7 @@
   }
 
   // Camera Ready & Initialization Flow
+  // Camera Ready & Initialization Flow
   async function initializeCamera() {
     $('#cameraErrorBox')?.setAttribute('hidden', 'true');
     stopCamera();
@@ -317,60 +318,150 @@
       return;
     }
 
-    try {
-      // Request native wide field-of-view (4:3 sensor native for iPad cameras)
-      const stream = await navigator.mediaDevices.getUserMedia({
+    // Progressive constraint fallback list:
+    // 1) High-res wide (ideal 1080p/4:3 native)
+    // 2) Standard 720p front
+    // 3) Front camera without resolution constraints
+    // 4) Any available video device
+    const constraintList = [
+      {
         video: {
           facingMode: 'user',
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1440, min: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1440 }
         },
         audio: false
-      });
-      if (run !== state.runId) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
+      },
+      {
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      },
+      {
+        video: {
+          facingMode: 'user'
+        },
+        audio: false
+      },
+      {
+        video: true,
+        audio: false
       }
-      state.stream = stream;
-      const video = $('#video');
-      video.srcObject = stream;
-      await video.play();
+    ];
 
-      // Ensure dimensions ready
-      if (!video.videoWidth) {
-        await new Promise((resolve, reject) => {
-          const tm = setTimeout(() => reject(new Error('카메라 응답 시간 초과')), 8000);
-          video.addEventListener('loadedmetadata', () => { clearTimeout(tm); resolve(); }, { once: true });
-        });
+    let stream = null;
+    let lastError = null;
+
+    for (const constraints of constraintList) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (stream) break;
+      } catch (err) {
+        lastError = err;
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          break; // User explicitly denied, no need to cycle further
+        }
       }
+    }
 
-      show('camera');
-      renderCameraFilterTray();
-      updateLiveCameraFilter();
-      startShootingSequence();
-    } catch (err) {
-      console.warn('Camera access denied or failed:', err);
+    if (!stream) {
+      console.warn('Camera access denied or failed across all constraints:', lastError);
       const errBox = $('#cameraErrorBox');
       if (errBox) {
         errBox.removeAttribute('hidden');
+        errBox.innerHTML = `
+          <strong>카메라를 켤 수 없습니다 (${lastError?.name || '오류'})</strong><br>
+          ${lastError?.name === 'NotAllowedError'
+            ? '브라우저 주소창 좌측 카메라 권한을 허용한 뒤 다시 시도해 주세요.'
+            : '카메라 장치 연결 및 브라우저 권한을 확인해 주세요.'}<br>
+          <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button type="button" class="btn-kiosk-primary" id="retryCameraBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">다시 시도</button>
+            <button type="button" class="btn-kiosk-secondary" id="fallbackDemoBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">샘플 모드로 진행</button>
+          </div>
+        `;
+        $('#retryCameraBtn')?.addEventListener('click', initializeCamera);
+        $('#fallbackDemoBtn')?.addEventListener('click', () => {
+          showNotice('샘플 사진 모드로 진행합니다.');
+          generateDemoShots();
+        });
       }
+      return;
     }
+
+    if (run !== state.runId) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
+    state.stream = stream;
+    const video = $('#video');
+    if (!video) {
+      console.error('Video element not found');
+      return;
+    }
+
+    // Explicit properties for iOS Safari & Chrome autoplay compatibility
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    video.srcObject = stream;
+
+    // Show camera stage immediately so element has active DOM layout
+    show('camera');
+    renderCameraFilterTray();
+    updateLiveCameraFilter();
+
+    try {
+      await video.play();
+    } catch (playErr) {
+      console.warn('video.play() auto-playback notification:', playErr);
+    }
+
+    // Ensure dimensions ready without hanging indefinitely
+    if (!video.videoWidth || video.videoWidth === 0) {
+      await new Promise((resolve) => {
+        if (video.videoWidth > 0) return resolve();
+        const tm = setTimeout(resolve, 2500);
+        const onReady = () => {
+          clearTimeout(tm);
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('canplay', onReady);
+          video.removeEventListener('playing', onReady);
+          resolve();
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('canplay', onReady);
+        video.addEventListener('playing', onReady);
+      });
+    }
+
+    startShootingSequence();
   }
 
   // High-Resolution Snapshot Capture: Matches EXACT viewfinder visible FOV (Zero Distortion, Zero Surprises)
   async function captureVideoBlob() {
-    const video = $('#video');
-    const canvas = $('#captureCanvas');
+    let canvas = $('#captureCanvas');
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.id = 'captureCanvas';
+      canvas.style.display = 'none';
+      document.body.appendChild(canvas);
+    }
     const ctx = canvas.getContext('2d', { alpha: false });
+    const video = $('#video');
 
-    const vw = video.videoWidth || 1200;
-    const vh = video.videoHeight || 900;
-    const dispW = video.clientWidth || 4;
-    const dispH = video.clientHeight || 3;
-    const displayAspect = dispW / dispH;
+    const vw = (video && video.videoWidth > 0) ? video.videoWidth : 1200;
+    const vh = (video && video.videoHeight > 0) ? video.videoHeight : 900;
+    const dispW = (video && video.clientWidth > 0) ? video.clientWidth : 4;
+    const dispH = (video && video.clientHeight > 0) ? video.clientHeight : 3;
+    const displayAspect = (dispW && dispH) ? (dispW / dispH) : (vw / vh);
 
     const w = 1200;
-    const h = Math.round(w / displayAspect);
+    const h = Math.round(w / (displayAspect || (4 / 3)));
     canvas.width = w;
     canvas.height = h;
 
@@ -389,10 +480,27 @@
       sy = (vh - sh) / 2;
     }
 
+    // Guard bounds against NaN or out of bounds
+    sx = Math.max(0, Math.min(vw - 1, Math.round(sx)));
+    sy = Math.max(0, Math.min(vh - 1, Math.round(sy)));
+    sw = Math.max(1, Math.min(vw - sx, Math.round(sw)));
+    sh = Math.max(1, Math.min(vh - sy, Math.round(sh)));
+
     ctx.save();
     ctx.translate(w, 0);
     ctx.scale(-1, 1); // Natural selfie mirror
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+    if (video && video.videoWidth > 0 && video.readyState >= 2) {
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, w, h);
+    } else {
+      // Clean fallback frame if video feed is momentarily unready
+      ctx.fillStyle = '#FFE3EC';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#211C29';
+      ctx.font = 'bold 48px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('마음 네컷 사진', w / 2, h / 2);
+    }
     ctx.restore();
 
     return new Promise((resolve, reject) => {
@@ -460,8 +568,9 @@
       renderPhotoSelectionGrid();
       show('select');
     } catch (e) {
+      console.error('Shooting error detail:', e);
       if (run === state.runId) {
-        showNotice('촬영 중 문제가 발생하여 처음 화면으로 이동합니다.');
+        showNotice(`촬영 중 문제가 발생하여 처음 화면으로 이동합니다: ${e?.message || '오류'}`);
         resetKiosk();
       }
     }
@@ -506,7 +615,7 @@
 
         if (!blob) {
           // Fallback canvas if offline or path unavailable
-          const canvas = $('#captureCanvas');
+          const canvas = $('#captureCanvas') || document.createElement('canvas');
           const ctx = canvas.getContext('2d', { alpha: false });
           canvas.width = 1200;
           canvas.height = 900;
