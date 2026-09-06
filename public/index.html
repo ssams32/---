@@ -54,6 +54,7 @@
     </nav>
 
     <div class="header-tools">
+      <button type="button" class="header-tool-btn" id="sketchQualityBtn" title="배경 및 스케치 품질 패널" aria-label="품질 패널">🎨</button>
       <button type="button" class="header-tool-btn" id="fullscreenBtn" title="전체화면 전환" aria-label="전체화면 전환">⛶</button>
       <a href="/admin" class="admin-btn" title="관리자 센터" aria-label="관리자 센터">⚙</a>
     </div>
@@ -369,6 +370,42 @@
             </div>
           </div>
 
+          <!-- Sketch Detail Controls (Section 26: Exposed when Sketch preset active) -->
+          <div class="sketch-controls-card" id="sketchControlsCard" hidden>
+            <div class="sketch-card-header">
+              <span class="sketch-card-title">🎨 스케치 세부 표현</span>
+              <button type="button" class="btn-compare-toggle" id="btnOpenCompare">👁️ 원본과 비교</button>
+            </div>
+            <div class="sketch-slider-row">
+              <div class="slider-header-row">
+                <label for="sketchLineSlider" class="slider-title">선 표현</label>
+                <span class="slider-value-badge" id="sketchLineBadge">85%</span>
+              </div>
+              <input type="range" id="sketchLineSlider" class="kiosk-range-slider" min="0" max="100" value="85">
+            </div>
+            <div class="sketch-slider-row">
+              <div class="slider-header-row">
+                <label for="sketchColorSlider" class="slider-title">색상 농도</label>
+                <span class="slider-value-badge" id="sketchColorBadge">80%</span>
+              </div>
+              <input type="range" id="sketchColorSlider" class="kiosk-range-slider" min="0" max="100" value="80">
+            </div>
+            <div class="sketch-slider-row">
+              <div class="slider-header-row">
+                <label for="sketchPaperSlider" class="slider-title">종이 질감</label>
+                <span class="slider-value-badge" id="sketchPaperBadge">45%</span>
+              </div>
+              <input type="range" id="sketchPaperSlider" class="kiosk-range-slider" min="0" max="100" value="45">
+            </div>
+            <div class="sketch-slider-row">
+              <div class="slider-header-row">
+                <label for="sketchWashSlider" class="slider-title">배경 번짐</label>
+                <span class="slider-value-badge" id="sketchWashBadge">25%</span>
+              </div>
+              <input type="range" id="sketchWashSlider" class="kiosk-range-slider" min="0" max="100" value="25">
+            </div>
+          </div>
+
           <!-- Collapsed Manual Adjustments Details -->
           <details class="filter-manual-accordion" id="filterManualAccordion">
             <summary class="manual-accordion-summary">
@@ -588,15 +625,110 @@
     </div>
   </div>
 
+  <!-- =============================================================
+       OPERATOR SKETCH QUALITY PANEL MODAL (SECTION 27)
+       ============================================================= -->
+  <div class="kiosk-modal-overlay" id="sketchQualityModal" hidden>
+    <div class="kiosk-modal-card quality-modal-card">
+      <div class="kiosk-modal-header">
+        <h3>🎨 운영자 스케치 품질 진단 패널</h3>
+        <button type="button" class="btn-modal-close" id="closeSketchQualityBtn">✕</button>
+      </div>
+      <div class="kiosk-modal-body">
+        <div class="diag-status-list">
+          <div class="diag-status-row">
+            <span class="diag-label">배경 보정 상태:</span>
+            <span class="badge-status-pill" id="lblBackdropStatus">정상 (good)</span>
+          </div>
+          <div class="diag-status-row">
+            <span class="diag-label">배경 색상 분산:</span>
+            <span class="diag-val" id="lblBackdropVariance">0</span>
+          </div>
+          <div class="diag-status-row">
+            <span class="diag-label">인물 전경 비율:</span>
+            <span class="diag-val" id="lblForegroundCoverage">0%</span>
+          </div>
+          <div class="diag-status-row">
+            <span class="diag-label">출력 모드 및 폴백:</span>
+            <span class="diag-val" id="lblFallbackLevel">Level 1 (종이 일러스트)</span>
+          </div>
+          <div class="diag-status-row">
+            <span class="diag-label">최근 처리 시간:</span>
+            <span class="diag-val" id="lblProcessingTime">0 ms</span>
+          </div>
+          <div class="diag-status-row">
+            <span class="diag-label">메모리 상태:</span>
+            <span class="diag-val" id="lblMemoryEstimate">정상 (&lt; 48MB)</span>
+          </div>
+        </div>
+
+        <div class="operator-action-section">
+          <div class="operator-action-title">운영자 조치</div>
+          <div class="operator-action-grid">
+            <button type="button" class="btn-kiosk-secondary btn-op-action" id="opRecalibrateBg">배경색 다시 측정</button>
+            <button type="button" class="btn-kiosk-secondary btn-op-action" id="opEnhanceBoundary">경계 보존 강화</button>
+            <button type="button" class="btn-kiosk-secondary btn-op-action" id="opProtectBlue">하늘색 의상 보호 강화</button>
+            <button type="button" class="btn-kiosk-secondary btn-op-action" id="opForceFullFrame">전체 스케치로 전환</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================================
+       BEFORE / AFTER COMPARISON MODAL (SECTION 26)
+       ============================================================= -->
+  <div class="kiosk-modal-overlay" id="sketchCompareModal" hidden>
+    <div class="kiosk-modal-card compare-modal-card">
+      <div class="kiosk-modal-header">
+        <h3>👁️ 원본과 비교하기</h3>
+        <button type="button" class="btn-modal-close" id="closeCompareModalBtn">✕</button>
+      </div>
+      <div class="compare-viewer-container" id="compareViewer">
+        <div class="compare-viewport">
+          <img id="compareOriginalImg" class="compare-img compare-img-base" alt="원본 사진">
+          <div class="compare-clip-wrap" id="compareClipWrap">
+            <canvas id="compareSketchCanvas" class="compare-img compare-img-over"></canvas>
+          </div>
+          <div class="compare-divider-line" id="compareDividerLine">
+            <div class="compare-handle-knob">⬌</div>
+          </div>
+        </div>
+        <input type="range" class="compare-slider-control" id="compareSliderControl" min="0" max="100" value="50">
+      </div>
+      <div class="compare-footer-bar">
+        <span>슬라이더를 좌우로 밀어 원본 사진과 스케치를 비교해 보세요</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Photo Printer dedicated full-bleed print container -->
   <div id="printArea" class="print-only" aria-hidden="true"></div>
 
+  <!-- First-Party Custom Camera-Filter Platform -->
   <script src="/filters/curve-engine.js?v=4.5.0"></script>
   <script src="/filters/lut-parser.js?v=4.5.0"></script>
   <script src="/filters/filter-definitions.js?v=4.5.0"></script>
   <script src="/filters/pixel-engine.js?v=4.5.0"></script>
   <script src="/filters/filter-cache.js?v=4.5.0"></script>
   <script src="/filters/filter-client.js?v=4.5.0"></script>
+
+  <!-- First-Party Group Color Sketch Platform -->
+  <script src="/sketch/sketch-definitions.js?v=4.5.0"></script>
+  <script src="/sketch/backdrop-calibrator.js?v=4.5.0"></script>
+  <script src="/sketch/color-key.js?v=4.5.0"></script>
+  <script src="/sketch/component-labeler.js?v=4.5.0"></script>
+  <script src="/sketch/group-envelope.js?v=4.5.0"></script>
+  <script src="/sketch/thin-structure.js?v=4.5.0"></script>
+  <script src="/sketch/mask-refiner.js?v=4.5.0"></script>
+  <script src="/sketch/edge-pyramid.js?v=4.5.0"></script>
+  <script src="/sketch/color-quantizer.js?v=4.5.0"></script>
+  <script src="/sketch/paper-composer.js?v=4.5.0"></script>
+  <script src="/sketch/confidence-fallback.js?v=4.5.0"></script>
+  <script src="/sketch/sketch-cache.js?v=4.5.0"></script>
+  <script src="/sketch/sketch-engine.js?v=4.5.0"></script>
+  <script src="/sketch/sketch-client.js?v=4.5.0"></script>
+
   <script src="/config.js?v=4.5.0"></script>
   <script src="/app.js?v=4.5.0"></script>
 </body>

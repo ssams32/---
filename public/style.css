@@ -3352,6 +3352,14 @@ main#app {
   .filter-manual-accordion {
     display: none;
   }
+  .sketch-controls-card {
+    padding: 6px 10px;
+    border-radius: 12px;
+    gap: 4px;
+  }
+  .sketch-slider-row {
+    gap: 1px;
+  }
   .filter-nav-dock {
     margin-top: 0;
     padding-top: 4px;
@@ -3368,5 +3376,312 @@ main#app {
     font-size: 15px !important;
     flex: 1 1 65%;
   }
+}
+
+/* ===================================================================
+   SKETCH CONTROLS CARD & MODALS (SECTIONS 26, 27)
+   =================================================================== */
+
+.sketch-controls-card {
+  background: #F9F6FA;
+  border: 1px solid #ECE4F0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sketch-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.sketch-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary, #211C29);
+}
+
+.btn-compare-toggle {
+  background: #FFFFFF;
+  border: 1.5px solid #EAE3EF;
+  color: var(--color-brand-primary, #FF4F87);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-compare-toggle:hover {
+  background: #FDFBFD;
+  border-color: var(--color-brand-primary, #FF4F87);
+}
+
+.btn-compare-toggle:active {
+  transform: scale(0.96);
+}
+
+.sketch-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sketch-slider-row .slider-header-row {
+  margin-bottom: 2px;
+}
+
+/* Modal Overlay Common */
+.kiosk-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 20, 29, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.kiosk-modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.kiosk-modal-overlay[hidden] {
+  display: none !important;
+}
+
+/* Quality Panel Modal */
+.quality-modal-card {
+  width: min(540px, 94vw);
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 24px 64px rgba(23, 20, 29, 0.3);
+  border: 1px solid #ECE4F0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.diag-status-list {
+  background: #F9F6FA;
+  border-radius: 12px;
+  padding: 12px 16px;
+  border: 1px solid #ECE4F0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diag-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+}
+
+.diag-label {
+  color: #6E6778;
+  font-weight: 500;
+}
+
+.diag-val {
+  font-weight: 700;
+  color: #211C29;
+}
+
+.badge-status-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.badge-status-pill.status-good {
+  background: #DCFCE7;
+  color: #15803D;
+}
+
+.badge-status-pill.status-uneven {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.badge-status-pill.status-unreliable {
+  background: #FEE2E2;
+  color: #B91C1C;
+}
+
+.operator-action-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.operator-action-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #6E6778;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.operator-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.btn-op-action {
+  height: 44px;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1.5px solid #EAE3EF;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-op-action:hover {
+  background: #FDFBFD;
+  border-color: #D8CFE0;
+}
+
+.btn-op-action:active {
+  transform: scale(0.97);
+}
+
+/* Compare Modal */
+.compare-modal-card {
+  width: min(720px, 95vw);
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 24px 64px rgba(23, 20, 29, 0.3);
+  border: 1px solid #ECE4F0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 92vh;
+}
+
+.compare-viewer-container {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.compare-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 480px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #1F1B24;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  user-select: none;
+}
+
+.compare-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.compare-clip-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.compare-clip-wrap .compare-img-over {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.compare-divider-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: #FFFFFF;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.compare-handle-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: #211C29;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.compare-slider-control {
+  width: 100%;
+  height: 24px;
+  accent-color: var(--color-brand-primary, #FF4F87);
+  cursor: pointer;
+}
+
+.compare-footer-bar {
+  text-align: center;
+  font-size: 12.5px;
+  color: #6E6778;
+  font-weight: 600;
 }
 

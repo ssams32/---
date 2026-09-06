@@ -43,6 +43,7 @@
     selected: [],
     stickers: new Map(), // photoId -> Array<StickerModel>
     photoFilters: new Map(), // photoId -> FilterState { filterId, intensity, adjustments, customLUT }
+    photoSketch: new Map(), // photoId -> SketchState { effectId, lineStrength, colorStrength, paperStrength, backgroundWashStrength, forceFullFrame, protectBlueStrength, lastDiagnostics }
     cameraFilterId: 'original',
     activeFilterSlotIndex: 0,
     activeFilterCategory: 'recommended',
@@ -657,6 +658,50 @@
     state.photoFilters.set(photoId, filterState);
   }
 
+  function isSketchFilter(filterId) {
+    if (!filterId) return false;
+    if (typeof filterId === 'string' && filterId.startsWith('group-')) return true;
+    return Boolean(
+      window.SketchDefinitions &&
+      window.SketchDefinitions.SKETCH_PRESETS &&
+      window.SketchDefinitions.SKETCH_PRESETS.some((p) => p.id === filterId)
+    );
+  }
+
+  function getPhotoSketchState(photoId, presetId) {
+    if (!state.photoSketch.has(photoId)) {
+      const pid = (presetId && isSketchFilter(presetId)) ? presetId : 'group-color-sketch';
+      const preset = window.SketchDefinitions ? window.SketchDefinitions.getSketchPreset(pid) : null;
+      state.photoSketch.set(photoId, {
+        effectId: pid,
+        intensity: 1.0,
+        lineStrength: preset ? preset.lineStrength : 0.85,
+        colorStrength: preset ? preset.colorStrength : 0.80,
+        paperStrength: preset ? preset.paperStrength : 0.45,
+        backgroundWashStrength: preset ? preset.backgroundWashStrength : 0.25,
+        forceFullFrame: false,
+        protectBlueStrength: 0.85,
+        lastDiagnostics: null
+      });
+    }
+    const ss = state.photoSketch.get(photoId);
+    if (presetId && isSketchFilter(presetId) && ss.effectId !== presetId) {
+      ss.effectId = presetId;
+      const preset = window.SketchDefinitions ? window.SketchDefinitions.getSketchPreset(presetId) : null;
+      if (preset) {
+        ss.lineStrength = preset.lineStrength;
+        ss.colorStrength = preset.colorStrength;
+        ss.paperStrength = preset.paperStrength;
+        ss.backgroundWashStrength = preset.backgroundWashStrength;
+      }
+    }
+    return ss;
+  }
+
+  function setPhotoSketchState(photoId, sketchState) {
+    state.photoSketch.set(photoId, sketchState);
+  }
+
   function initFilterStage() {
     state.activeFilterSlotIndex = 0;
     state.activeFilterCategory = 'recommended';
@@ -677,7 +722,7 @@
     if (!track) return;
     track.replaceChildren();
 
-    const categories = (window.FilterDefinitions && window.FilterDefinitions.FILTER_CATEGORIES) || [
+    const categories = [
       { id: 'recommended', label: '⭐ 추천' },
       { id: 'natural', label: '🌿 내추럴' },
       { id: 'bright', label: '✨ 화사' },
@@ -685,6 +730,7 @@
       { id: 'cool', label: '❄️ 쿨톤' },
       { id: 'film', label: '🎞️ 필름' },
       { id: 'monochrome', label: '🖤 모노' },
+      { id: 'sketch', label: '🎨 스케치' },
       { id: 'all', label: '전체' }
     ];
 
@@ -714,11 +760,21 @@
     const currentFilter = activePhotoId ? getPhotoFilter(activePhotoId) : null;
     const currentFilterId = currentFilter ? currentFilter.filterId : 'original';
 
-    const allPresets = (window.FilterDefinitions && window.FilterDefinitions.FILTER_PRESETS) || [];
     const cat = state.activeFilterCategory;
-    const presets = allPresets.filter((p) => cat === 'all' || p.category === cat);
+    let presets = [];
+    if (cat === 'sketch') {
+      presets = (window.SketchDefinitions && window.SketchDefinitions.SKETCH_PRESETS) || [];
+    } else if (cat === 'all') {
+      const allFilterPresets = (window.FilterDefinitions && window.FilterDefinitions.FILTER_PRESETS) || [];
+      const sketchPresets = (window.SketchDefinitions && window.SketchDefinitions.SKETCH_PRESETS) || [];
+      presets = [...allFilterPresets, ...sketchPresets];
+    } else {
+      const allFilterPresets = (window.FilterDefinitions && window.FilterDefinitions.FILTER_PRESETS) || [];
+      presets = allFilterPresets.filter((p) => p.category === cat);
+    }
 
     presets.forEach((preset) => {
+      const isSketch = isSketchFilter(preset.id);
       const isSelected = preset.id === currentFilterId;
       const card = document.createElement('div');
       card.className = `filter-preset-card ${isSelected ? 'selected' : ''}`;
@@ -740,13 +796,15 @@
         const img = new Image();
         img.onload = () => {
           drawCover(tctx, img, 0, 0, 82, 66);
-          if (window.FilterDefinitions && window.FilterDefinitions.generateLiveCSSFilter) {
+          if (isSketch) {
+            thumbCanvas.style.filter = 'contrast(1.25) saturate(0.85) sepia(0.25) brightness(1.02)';
+          } else if (window.FilterDefinitions && window.FilterDefinitions.generateLiveCSSFilter) {
             thumbCanvas.style.filter = window.FilterDefinitions.generateLiveCSSFilter(preset, 1.0);
           }
         };
         img.src = activeShot.url;
       } else {
-        tctx.fillStyle = '#C4B5FD';
+        tctx.fillStyle = isSketch ? '#E0F2FE' : '#C4B5FD';
         tctx.fillRect(0, 0, 82, 66);
       }
       thumb.append(thumbCanvas);
@@ -782,6 +840,7 @@
     const photoId = state.selected[slotIndex];
     if (!photoId) return;
     const fs = getPhotoFilter(photoId);
+    const isSketch = isSketchFilter(fs.filterId);
 
     // Sync filter cards scroller
     $('#filterCardsScroller')?.querySelectorAll('.filter-preset-card').forEach((c) => {
@@ -791,29 +850,64 @@
       c.setAttribute('aria-pressed', match ? 'true' : 'false');
     });
 
-    // Sync intensity slider & quick preset buttons
-    const intensitySlider = $('#filterIntensitySlider');
-    const intensityBadge = $('#filterIntensityBadge');
-    if (intensitySlider) intensitySlider.value = fs.intensity;
-    if (intensityBadge) intensityBadge.textContent = `${fs.intensity}%`;
-    $$('.btn-intensity-preset').forEach((btn) => {
-      btn.classList.toggle('active', Number(btn.dataset.intensity) === fs.intensity);
-    });
+    // Toggle Sketch Controls Card vs Regular Filter Controls
+    const sketchControlsCard = $('#sketchControlsCard');
+    const manualAccordion = $('#filterManualAccordion');
 
-    // Sync manual adjustment sliders
-    const adj = fs.adjustments || {};
-    const setManualInput = (id, val, mult = 100) => {
-      const inp = $('#inputManual' + id);
-      const lbl = $('#lblManual' + id);
-      const roundVal = Math.round((val || 0) * mult);
-      if (inp) inp.value = roundVal;
-      if (lbl) lbl.textContent = roundVal > 0 ? `+${roundVal}` : String(roundVal);
-    };
-    setManualInput('Brightness', adj.brightness);
-    setManualInput('Contrast', adj.contrast);
-    setManualInput('Saturation', adj.saturation);
-    setManualInput('Temperature', adj.temperature);
-    setManualInput('Tint', adj.tint);
+    if (isSketch) {
+      if (sketchControlsCard) sketchControlsCard.removeAttribute('hidden');
+      if (manualAccordion) manualAccordion.setAttribute('hidden', '');
+
+      const ss = getPhotoSketchState(photoId, fs.filterId);
+      const lineSlider = $('#sketchLineSlider');
+      const lineBadge = $('#sketchLineBadge');
+      const colorSlider = $('#sketchColorSlider');
+      const colorBadge = $('#sketchColorBadge');
+      const paperSlider = $('#sketchPaperSlider');
+      const paperBadge = $('#sketchPaperBadge');
+      const washSlider = $('#sketchWashSlider');
+      const washBadge = $('#sketchWashBadge');
+
+      if (lineSlider) lineSlider.value = Math.round(ss.lineStrength * 100);
+      if (lineBadge) lineBadge.textContent = `${Math.round(ss.lineStrength * 100)}%`;
+      if (colorSlider) colorSlider.value = Math.round(ss.colorStrength * 100);
+      if (colorBadge) colorBadge.textContent = `${Math.round(ss.colorStrength * 100)}%`;
+      if (paperSlider) paperSlider.value = Math.round(ss.paperStrength * 100);
+      if (paperBadge) paperBadge.textContent = `${Math.round(ss.paperStrength * 100)}%`;
+      if (washSlider) washSlider.value = Math.round(ss.backgroundWashStrength * 100);
+      if (washBadge) washBadge.textContent = `${Math.round(ss.backgroundWashStrength * 100)}%`;
+
+      if (ss.lastDiagnostics) {
+        updateOperatorQualityPanelUI(ss.lastDiagnostics);
+      }
+    } else {
+      if (sketchControlsCard) sketchControlsCard.setAttribute('hidden', '');
+      if (manualAccordion) manualAccordion.removeAttribute('hidden');
+
+      // Sync intensity slider & quick preset buttons
+      const intensitySlider = $('#filterIntensitySlider');
+      const intensityBadge = $('#filterIntensityBadge');
+      if (intensitySlider) intensitySlider.value = fs.intensity;
+      if (intensityBadge) intensityBadge.textContent = `${fs.intensity}%`;
+      $$('.btn-intensity-preset').forEach((btn) => {
+        btn.classList.toggle('active', Number(btn.dataset.intensity) === fs.intensity);
+      });
+
+      // Sync manual adjustment sliders
+      const adj = fs.adjustments || {};
+      const setManualInput = (id, val, mult = 100) => {
+        const inp = $('#inputManual' + id);
+        const lbl = $('#lblManual' + id);
+        const roundVal = Math.round((val || 0) * mult);
+        if (inp) inp.value = roundVal;
+        if (lbl) lbl.textContent = roundVal > 0 ? `+${roundVal}` : String(roundVal);
+      };
+      setManualInput('Brightness', adj.brightness);
+      setManualInput('Contrast', adj.contrast);
+      setManualInput('Saturation', adj.saturation);
+      setManualInput('Temperature', adj.temperature);
+      setManualInput('Tint', adj.tint);
+    }
   }
 
   async function renderFilterSlot(slotIndex) {
@@ -827,19 +921,54 @@
     if (!shot) return;
 
     const fs = getPhotoFilter(photoId);
-    const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
-
+    const isSketch = isSketchFilter(fs.filterId);
     const nameTag = $('#filterSlotName' + slotIndex);
-    if (nameTag && preset) {
-      nameTag.textContent = `${preset.name} (${fs.intensity}%)`;
-    }
 
     try {
       const img = await loadHtmlImage(shot.url);
       canvas.width = 360;
       canvas.height = 270;
 
-      if (window.filterClient) {
+      if (isSketch && window.SketchClient) {
+        const ss = getPhotoSketchState(photoId, fs.filterId);
+        const sketchPreset = window.SketchDefinitions ? window.SketchDefinitions.getSketchPreset(fs.filterId) : null;
+        if (nameTag && sketchPreset) {
+          nameTag.textContent = `${sketchPreset.name} (${Math.round(ss.lineStrength * 100)}%)`;
+        }
+
+        const t0 = performance.now();
+        const res = await window.SketchClient.renderPreviewToCanvas(
+          canvas,
+          img,
+          photoId,
+          ss,
+          {
+            backdropRgb: window.SketchDefinitions ? window.SketchDefinitions.DEFAULT_BACKDROP_RGB : [143, 207, 227],
+            protectBlueStrength: ss.protectBlueStrength || 0.85,
+            forceFullFrame: ss.forceFullFrame || false
+          }
+        );
+        const elapsed = Math.round(performance.now() - t0);
+
+        if (res && res.confidenceInfo) {
+          ss.lastDiagnostics = {
+            status: res.confidenceInfo.status || 'good',
+            variance: Math.round(res.confidenceInfo.variance || 0),
+            coverage: Math.round((res.confidenceInfo.coverage || 0) * 100),
+            fallbackLevel: res.confidenceInfo.fallbackLevel || 1,
+            fallbackMode: res.confidenceInfo.fallbackMode || 'Level 1 (종이 일러스트)',
+            processingTimeMs: elapsed,
+            memoryEstimate: '< 48MB'
+          };
+          if (slotIndex === state.activeFilterSlotIndex) {
+            updateOperatorQualityPanelUI(ss.lastDiagnostics);
+          }
+        }
+      } else if (window.filterClient) {
+        const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
+        if (nameTag && preset) {
+          nameTag.textContent = `${preset.name} (${fs.intensity}%)`;
+        }
         await window.filterClient.renderPreviewToCanvas(
           canvas,
           img,
@@ -871,6 +1000,10 @@
     fs.filterId = filterId;
     setPhotoFilter(photoId, fs);
 
+    if (isSketchFilter(filterId)) {
+      getPhotoSketchState(photoId, filterId);
+    }
+
     // Update UI
     $('#filterCardsScroller')?.querySelectorAll('.filter-preset-card').forEach((c) => {
       const match = c.dataset.filterId === filterId;
@@ -879,6 +1012,7 @@
       c.setAttribute('aria-pressed', match ? 'true' : 'false');
     });
 
+    selectActiveFilterSlot(state.activeFilterSlotIndex);
     renderFilterSlot(state.activeFilterSlotIndex);
   }
 
@@ -920,11 +1054,45 @@
     }, 50);
   }
 
+  let sketchDebounceTimer = null;
+  function updateActiveSketchParam(param, rawVal) {
+    const photoId = state.selected[state.activeFilterSlotIndex];
+    if (!photoId) return;
+
+    const ss = getPhotoSketchState(photoId);
+    const numVal = Math.max(0, Math.min(100, Number(rawVal)));
+    if (param === 'lineStrength') {
+      ss.lineStrength = numVal / 100;
+      const b = $('#sketchLineBadge');
+      if (b) b.textContent = `${numVal}%`;
+    } else if (param === 'colorStrength') {
+      ss.colorStrength = numVal / 100;
+      const b = $('#sketchColorBadge');
+      if (b) b.textContent = `${numVal}%`;
+    } else if (param === 'paperStrength') {
+      ss.paperStrength = numVal / 100;
+      const b = $('#sketchPaperBadge');
+      if (b) b.textContent = `${numVal}%`;
+    } else if (param === 'backgroundWashStrength') {
+      ss.backgroundWashStrength = numVal / 100;
+      const b = $('#sketchWashBadge');
+      if (b) b.textContent = `${numVal}%`;
+    }
+
+    clearTimeout(sketchDebounceTimer);
+    sketchDebounceTimer = setTimeout(() => {
+      renderFilterSlot(state.activeFilterSlotIndex);
+    }, 45);
+  }
+
   function applyActiveFilterToAll() {
     const activePhotoId = state.selected[state.activeFilterSlotIndex];
     if (!activePhotoId) return;
 
     const sourceFs = getPhotoFilter(activePhotoId);
+    const isSketch = isSketchFilter(sourceFs.filterId);
+    const sourceSs = isSketch ? getPhotoSketchState(activePhotoId) : null;
+
     state.selected.forEach((pid) => {
       setPhotoFilter(pid, {
         filterId: sourceFs.filterId,
@@ -932,6 +1100,9 @@
         adjustments: Object.assign({}, sourceFs.adjustments),
         customLUT: sourceFs.customLUT
       });
+      if (isSketch && sourceSs) {
+        setPhotoSketchState(pid, Object.assign({}, sourceSs));
+      }
     });
 
     renderAllFilterSlots();
@@ -947,6 +1118,7 @@
       adjustments: { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0 },
       customLUT: null
     });
+    state.photoSketch.delete(photoId);
 
     selectActiveFilterSlot(state.activeFilterSlotIndex);
     renderFilterSlot(state.activeFilterSlotIndex);
@@ -960,10 +1132,101 @@
         adjustments: { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0 },
         customLUT: null
       });
+      state.photoSketch.delete(photoId);
     });
 
     selectActiveFilterSlot(state.activeFilterSlotIndex);
     renderAllFilterSlots();
+  }
+
+  function updateOperatorQualityPanelUI(diag) {
+    if (!diag) return;
+    const statusEl = $('#lblBackdropStatus');
+    const varEl = $('#lblBackdropVariance');
+    const covEl = $('#lblForegroundCoverage');
+    const fbEl = $('#lblFallbackLevel');
+    const timeEl = $('#lblProcessingTime');
+    const memEl = $('#lblMemoryEstimate');
+
+    if (statusEl) {
+      statusEl.textContent = diag.status === 'good' ? '정상 (good)' : (diag.status === 'uneven' ? '불균일 (uneven)' : '신뢰불가 (unreliable)');
+      statusEl.className = `badge-status-pill status-${diag.status}`;
+    }
+    if (varEl) varEl.textContent = String(diag.variance);
+    if (covEl) covEl.textContent = `${diag.coverage}%`;
+    if (fbEl) fbEl.textContent = diag.fallbackMode || `Level ${diag.fallbackLevel}`;
+    if (timeEl) timeEl.textContent = `${diag.processingTimeMs} ms`;
+    if (memEl) memEl.textContent = diag.memoryEstimate || '정상 (< 48MB)';
+  }
+
+  function openSketchQualityModal() {
+    const modal = $('#sketchQualityModal');
+    if (!modal) return;
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (activePhotoId) {
+      const ss = getPhotoSketchState(activePhotoId);
+      if (ss.lastDiagnostics) {
+        updateOperatorQualityPanelUI(ss.lastDiagnostics);
+      }
+    }
+    modal.removeAttribute('hidden');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSketchQualityModal() {
+    const modal = $('#sketchQualityModal');
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('hidden', '');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function openCompareModal() {
+    const modal = $('#sketchCompareModal');
+    if (!modal) return;
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (!activePhotoId) return;
+
+    const shot = state.shots.find((s) => s.id === activePhotoId);
+    if (!shot) return;
+
+    const origImg = $('#compareOriginalImg');
+    const sketchCanvas = $('#compareSketchCanvas');
+    const activeSlotCanvas = $('#filterCanvas' + state.activeFilterSlotIndex);
+
+    if (origImg) origImg.src = shot.url;
+    if (sketchCanvas && activeSlotCanvas) {
+      sketchCanvas.width = activeSlotCanvas.width;
+      sketchCanvas.height = activeSlotCanvas.height;
+      const sctx = sketchCanvas.getContext('2d');
+      sctx.drawImage(activeSlotCanvas, 0, 0);
+    }
+
+    const slider = $('#compareSliderControl');
+    if (slider) {
+      slider.value = 50;
+      updateCompareSplit(50);
+    }
+
+    modal.removeAttribute('hidden');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function updateCompareSplit(val) {
+    const clipWrap = $('#compareClipWrap');
+    const divider = $('#compareDividerLine');
+    if (clipWrap) clipWrap.style.width = `${val}%`;
+    if (divider) divider.style.left = `${val}%`;
+  }
+
+  function closeCompareModal() {
+    const modal = $('#sketchCompareModal');
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('hidden', '');
+    modal.setAttribute('aria-hidden', 'true');
   }
 
   // ===================================================================
@@ -1035,9 +1298,17 @@
       const shot = state.shots.find((s) => s.id === photoId);
       if (shot) {
         const fs = getPhotoFilter(photoId);
-        const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
+        const isSketch = isSketchFilter(fs.filterId);
         loadHtmlImage(shot.url).then((imgEl) => {
-          if (window.filterClient) {
+          if (isSketch && window.SketchClient) {
+            const ss = getPhotoSketchState(photoId, fs.filterId);
+            window.SketchClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, ss, {
+              backdropRgb: window.SketchDefinitions ? window.SketchDefinitions.DEFAULT_BACKDROP_RGB : [143, 207, 227],
+              protectBlueStrength: ss.protectBlueStrength || 0.85,
+              forceFullFrame: ss.forceFullFrame || false
+            });
+          } else if (window.filterClient) {
+            const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
             window.filterClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, preset, fs.intensity / 100, fs.adjustments);
           } else {
             const sctx = slotCanvas.getContext('2d');
@@ -1422,38 +1693,57 @@
       ctx.rect(x, y, cellW, cellH);
       ctx.clip();
 
-      // Sequential Offscreen Filter Rendering
-      const offCanvas = document.createElement('canvas');
-      offCanvas.width = Math.round(cellW);
-      offCanvas.height = Math.round(cellH);
-      const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-      drawCover(offCtx, img, 0, 0, offCanvas.width, offCanvas.height);
-
+      // Sequential Offscreen Filter or Sketch Rendering
       const filterState = getPhotoFilter(photoId);
-      const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(filterState.filterId) : null;
+      const isSketch = isSketchFilter(filterState.filterId);
 
-      if (preset && (preset.id !== 'original' || (filterState.adjustments && Object.values(filterState.adjustments).some((v) => v !== 0)))) {
-        const rawData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-        const combinedParams = window.FilterDefinitions
-          ? window.FilterDefinitions.interpolateParameters(preset, filterState.intensity / 100, filterState.adjustments)
-          : preset;
-        if (filterState.customLUT) combinedParams.lut = filterState.customLUT;
+      if (isSketch && window.SketchClient) {
+        const ss = getPhotoSketchState(photoId, filterState.filterId);
+        const sketchBmp = await window.SketchClient.renderToBitmap(
+          s.blob,
+          ss,
+          Math.round(cellW),
+          Math.round(cellH),
+          {
+            backdropRgb: window.SketchDefinitions ? window.SketchDefinitions.DEFAULT_BACKDROP_RGB : [143, 207, 227],
+            protectBlueStrength: ss.protectBlueStrength || 0.85,
+            forceFullFrame: ss.forceFullFrame || false
+          }
+        );
+        ctx.drawImage(sketchBmp, x, y, cellW, cellH);
+        try { sketchBmp.close(); } catch (e) {}
+      } else {
+        const offCanvas = document.createElement('canvas');
+        offCanvas.width = Math.round(cellW);
+        offCanvas.height = Math.round(cellH);
+        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+        drawCover(offCtx, img, 0, 0, offCanvas.width, offCanvas.height);
 
-        if (window.PixelEngine && window.PixelEngine.processPixelPipeline) {
-          window.PixelEngine.processPixelPipeline(rawData, combinedParams, {
-            intensity: filterState.intensity / 100,
-            grainSeed: photoId,
-            photoId
-          });
-          offCtx.putImageData(rawData, 0, 0);
+        const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(filterState.filterId) : null;
+
+        if (preset && (preset.id !== 'original' || (filterState.adjustments && Object.values(filterState.adjustments).some((v) => v !== 0)))) {
+          const rawData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+          const combinedParams = window.FilterDefinitions
+            ? window.FilterDefinitions.interpolateParameters(preset, filterState.intensity / 100, filterState.adjustments)
+            : preset;
+          if (filterState.customLUT) combinedParams.lut = filterState.customLUT;
+
+          if (window.PixelEngine && window.PixelEngine.processPixelPipeline) {
+            window.PixelEngine.processPixelPipeline(rawData, combinedParams, {
+              intensity: filterState.intensity / 100,
+              grainSeed: photoId,
+              photoId
+            });
+            offCtx.putImageData(rawData, 0, 0);
+          }
         }
+
+        ctx.drawImage(offCanvas, x, y);
+
+        // Immediately release offscreen buffer
+        offCanvas.width = 1;
+        offCanvas.height = 1;
       }
-
-      ctx.drawImage(offCanvas, x, y);
-
-      // Immediately release offscreen buffer
-      offCanvas.width = 1;
-      offCanvas.height = 1;
 
       // Render Stickers on Photo with Aspect Ratio Preserved
       for (const st of ensureStickerList(photoId)) {
@@ -1664,6 +1954,10 @@
     if (window.filterClient) {
       window.filterClient.reset();
     }
+    if (window.SketchClient) {
+      window.SketchClient.reset();
+    }
+    state.photoSketch.clear();
     if (window.CurveEngine && window.CurveEngine.clearCurveCache) {
       window.CurveEngine.clearCurveCache();
     }
@@ -1798,6 +2092,79 @@
       selectActiveFilterSlot(state.activeFilterSlotIndex);
       renderFilterSlot(state.activeFilterSlotIndex);
     }
+  });
+
+  // Sketch Platform Controls (Section 26)
+  $('#sketchLineSlider')?.addEventListener('input', (e) => {
+    updateActiveSketchParam('lineStrength', e.target.value);
+  });
+  $('#sketchColorSlider')?.addEventListener('input', (e) => {
+    updateActiveSketchParam('colorStrength', e.target.value);
+  });
+  $('#sketchPaperSlider')?.addEventListener('input', (e) => {
+    updateActiveSketchParam('paperStrength', e.target.value);
+  });
+  $('#sketchWashSlider')?.addEventListener('input', (e) => {
+    updateActiveSketchParam('backgroundWashStrength', e.target.value);
+  });
+
+  // Before/After Comparison Modal (Section 26)
+  $('#btnOpenCompare')?.addEventListener('click', openCompareModal);
+  $('#closeCompareModalBtn')?.addEventListener('click', closeCompareModal);
+  $('#compareSliderControl')?.addEventListener('input', (e) => {
+    updateCompareSplit(e.target.value);
+  });
+  const compareModal = $('#sketchCompareModal');
+  compareModal?.addEventListener('click', (e) => {
+    if (e.target === compareModal) closeCompareModal();
+  });
+
+  // Operator Quality Panel Modal (Section 27)
+  const qualityModal = $('#sketchQualityModal');
+  $('#sketchQualityBtn')?.addEventListener('click', openSketchQualityModal);
+  $('#closeSketchQualityBtn')?.addEventListener('click', closeSketchQualityModal);
+  qualityModal?.addEventListener('click', (e) => {
+    if (e.target === qualityModal) closeSketchQualityModal();
+  });
+
+  $('#opRecalibrateBg')?.addEventListener('click', async () => {
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (!activePhotoId) return;
+    if (window.SketchClient) window.SketchClient.reset();
+    showNotice('배경색을 다시 정밀 측정하여 스케치를 갱신합니다.');
+    await renderFilterSlot(state.activeFilterSlotIndex);
+    const ss = getPhotoSketchState(activePhotoId);
+    if (ss.lastDiagnostics) updateOperatorQualityPanelUI(ss.lastDiagnostics);
+  });
+
+  $('#opEnhanceBoundary')?.addEventListener('click', async () => {
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (!activePhotoId) return;
+    const ss = getPhotoSketchState(activePhotoId);
+    ss.lineStrength = Math.min(1.0, ss.lineStrength + 0.10);
+    showNotice('인물 경계 라인 표현을 10% 강화했습니다.');
+    selectActiveFilterSlot(state.activeFilterSlotIndex);
+    await renderFilterSlot(state.activeFilterSlotIndex);
+  });
+
+  $('#opProtectBlue')?.addEventListener('click', async () => {
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (!activePhotoId) return;
+    const ss = getPhotoSketchState(activePhotoId);
+    ss.protectBlueStrength = 0.95;
+    showNotice('하늘색/청색 의상 및 소품 영역 보호를 극대화했습니다.');
+    await renderFilterSlot(state.activeFilterSlotIndex);
+    if (ss.lastDiagnostics) updateOperatorQualityPanelUI(ss.lastDiagnostics);
+  });
+
+  $('#opForceFullFrame')?.addEventListener('click', async () => {
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (!activePhotoId) return;
+    const ss = getPhotoSketchState(activePhotoId);
+    ss.forceFullFrame = !ss.forceFullFrame;
+    showNotice(ss.forceFullFrame ? '배경 삭제 없는 전체 프레임 스케치 모드로 전환되었습니다.' : '정밀 배경 분리 모드로 복원되었습니다.');
+    await renderFilterSlot(state.activeFilterSlotIndex);
+    if (ss.lastDiagnostics) updateOperatorQualityPanelUI(ss.lastDiagnostics);
   });
 
   $('#btnFilterBack')?.addEventListener('click', () => {

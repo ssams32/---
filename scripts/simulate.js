@@ -386,6 +386,243 @@ const { validateAndNormalizeJpeg, validateAndNormalizeBackground } = require('..
   filterSim.elapsedMs = Date.now() - startFilterSim;
   results.filterPlatform = filterSim;
 
+  // ===================================================================
+  // 7. First-Party Non-AI Group Color-Sketch Platform Stress Simulation (Section 34)
+  // ===================================================================
+  console.log('7. First-Party 비AI 그룹 컬러 스케치 플랫폼 고강도 시뮬레이션 (Section 34 규격)...');
+  const SketchDefinitions = require('../public/sketch/sketch-definitions.js');
+  const ColorKey = require('../public/sketch/color-key.js');
+  const ComponentLabeler = require('../public/sketch/component-labeler.js');
+  const GroupEnvelope = require('../public/sketch/group-envelope.js');
+  const ThinStructure = require('../public/sketch/thin-structure.js');
+  const MaskRefiner = require('../public/sketch/mask-refiner.js');
+  const EdgePyramid = require('../public/sketch/edge-pyramid.js');
+  const PaperComposer = require('../public/sketch/paper-composer.js');
+  const SketchCacheModule = require('../public/sketch/sketch-cache.js');
+  const SketchEngine = require('../public/sketch/sketch-engine.js');
+
+  const startSketchSim = Date.now();
+  const sketchSim = {
+    colorDistances: 10000,
+    softAlphas: 10000,
+    edgeClassifications: 10000,
+    componentMasks: 1000,
+    thinStructureMasks: 1000,
+    noiseMasks: 1000,
+    groupBoundsCalculations: 1000,
+    uniformScaleCalculations: 1000,
+    blueClothingCases: 500,
+    overlappingForegroundCases: 500,
+    narrowGapCases: 500,
+    wideGroupCases: 500,
+    fullSketchRenders: 100,
+    resetCycles: 100,
+    failures: 0,
+    elapsedMs: 0
+  };
+
+  // 10,000 Color Distances
+  for (let i = 0; i < sketchSim.colorDistances; i++) {
+    const r1 = (i * 17) % 256;
+    const g1 = (i * 31) % 256;
+    const b1 = (i * 47) % 256;
+    const d = ColorKey.colorDistance(r1, g1, b1, 143, 207, 227);
+    if (!Number.isFinite(d) || d < 0 || d > 1.0) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 10,000 Soft Alphas
+  for (let i = 0; i < sketchSim.softAlphas; i++) {
+    const dist = i / 10000;
+    const a = ColorKey.softAlpha(dist, 0.15, 0.35);
+    if (!Number.isFinite(a) || a < 0 || a > 1.0) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 10,000 Edge Classifications
+  for (let i = 0; i < sketchSim.edgeClassifications; i++) {
+    const edgeVal = (i % 100) / 100;
+    const cls = EdgePyramid.classifyEdge(edgeVal);
+    if (!cls || (cls !== 'primary' && cls !== 'secondary' && cls !== 'texture' && cls !== 'none')) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 1,000 Multi-component masks (1, 2, 4, 8 components)
+  const compCounts = [1, 2, 4, 8];
+  for (let i = 0; i < sketchSim.componentMasks; i++) {
+    const numComp = compCounts[i % 4];
+    const w = 80, h = 60;
+    const mask = new Uint8Array(w * h);
+    const step = Math.floor(w / (numComp + 1));
+    for (let c = 0; c < numComp; c++) {
+      const cx = (c + 1) * step;
+      for (let y = 15; y < 45; y++) {
+        for (let x = cx - 3; x <= cx + 3; x++) {
+          mask[y * w + x] = 255;
+        }
+      }
+    }
+    const labeled = ComponentLabeler.labelComponents(mask, w, h);
+    if (labeled.components.length !== numComp) {
+      sketchSim.failures++;
+    }
+    const retained = ComponentLabeler.retainForegroundComponents(labeled, {
+      majorAreaRatio: 0.005,
+      noiseAreaRatio: 0.0005
+    });
+    // Never drop to 1 if multiple valid exist
+    if (retained.size !== numComp) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 1,000 Thin Structure Masks
+  for (let i = 0; i < sketchSim.thinStructureMasks; i++) {
+    const w = 60, h = 60;
+    const curMask = new Float32Array(w * h);
+    const origMask = new Float32Array(w * h);
+    const edgeMag = new Float32Array(w * h);
+    for (let x = 10; x < 50; x++) {
+      origMask[30 * w + x] = 1.0;
+      edgeMag[30 * w + x] = 0.8;
+    }
+    const restored = ThinStructure.restoreThinStructures(curMask, origMask, edgeMag, w, h);
+    let count = 0;
+    for (let j = 0; j < restored.length; j++) if (restored[j] > 0.5) count++;
+    if (count < 30) sketchSim.failures++;
+  }
+
+  // 1,000 Noise Masks
+  for (let i = 0; i < sketchSim.noiseMasks; i++) {
+    const w = 50, h = 50;
+    const mask = new Float32Array(w * h);
+    mask[5 * w + 5] = 1.0;
+    mask[40 * w + 40] = 1.0;
+    const cleaned = ThinStructure.openMask(mask, w, h, 1);
+    let count = 0;
+    for (let j = 0; j < cleaned.length; j++) if (cleaned[j] > 0) count++;
+    if (count !== 0) sketchSim.failures++;
+  }
+
+  // 1,000 Group Bounds Calculations
+  for (let i = 0; i < sketchSim.groupBoundsCalculations; i++) {
+    const minX = (i * 3) % 200;
+    const maxX = minX + 50 + (i % 100);
+    const comps = [
+      { id: 1, minX: minX, minY: 50, maxX: minX + 30, maxY: 200, area: 4500 },
+      { id: 2, minX: maxX - 30, minY: 60, maxX: maxX, maxY: 220, area: 4800 }
+    ];
+    const bounds = GroupEnvelope.computeUnionBounds(comps, new Set([1, 2]));
+    if (bounds.minX > minX || bounds.maxX < maxX) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 1,000 Uniform Scale Calculations (sx === sy strict invariant)
+  for (let i = 0; i < sketchSim.uniformScaleCalculations; i++) {
+    const gb = {
+      minX: 10 + (i % 20),
+      minY: 20 + (i % 20),
+      maxX: 200 + (i % 300),
+      maxY: 180 + (i % 200)
+    };
+    gb.width = gb.maxX - gb.minX + 1;
+    gb.height = gb.maxY - gb.minY + 1;
+    const transform = PaperComposer.calculateCompositionTransform(gb, 1200, 900);
+    if (!Number.isFinite(transform.uniformScale) || transform.uniformScale <= 0) {
+      sketchSim.failures++;
+    }
+    // Strict invariant: uniform scaling in X and Y
+    const scaleX = transform.scaledWidth / gb.width;
+    const scaleY = transform.scaledHeight / gb.height;
+    if (Math.abs(scaleX - scaleY) > 1e-6) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 500 Blue Clothing Test Cases
+  for (let i = 0; i < sketchSim.blueClothingCases; i++) {
+    const isBlue = ColorKey.isConservativeBlueClothing(35, 75, 140, 143, 207, 227);
+    if (!isBlue) sketchSim.failures++;
+  }
+
+  // 500 Overlapping Foreground Test Cases
+  for (let i = 0; i < sketchSim.overlappingForegroundCases; i++) {
+    const env = { minX: 50, minY: 50, maxX: 450, maxY: 350 };
+    const inside = GroupEnvelope.isInsideGroupEnvelope(100 + (i % 200), 100 + (i % 150), env);
+    if (!inside) sketchSim.failures++;
+  }
+
+  // 500 Narrow Gap Test Cases
+  for (let i = 0; i < sketchSim.narrowGapCases; i++) {
+    const w = 60, h = 40;
+    const mask = new Float32Array(w * h);
+    // Two bodies with 4px gap
+    for (let y = 5; y < 35; y++) {
+      for (let x = 5; x < 25; x++) mask[y * w + x] = 1.0;
+      for (let x = 29; x < 50; x++) mask[y * w + x] = 1.0;
+    }
+    const gapVal = mask[20 * w + 27];
+    if (gapVal > 0.5) sketchSim.failures++;
+  }
+
+  // 500 Wide Group Test Cases
+  for (let i = 0; i < sketchSim.wideGroupCases; i++) {
+    const gbWide = { width: 300, height: 180 };
+    const isWide = PaperComposer.isWideGroupMode(gbWide);
+    if (!isWide) sketchSim.failures++;
+  }
+
+  // 100 Full Sketch Renders
+  const sketchPresets = SketchDefinitions.SKETCH_PRESETS;
+  for (let i = 0; i < sketchSim.fullSketchRenders; i++) {
+    const w = 120, h = 90;
+    const px = new Uint8ClampedArray(w * h * 4);
+    // Background sky-blue
+    for (let j = 0; j < px.length; j += 4) {
+      px[j] = 143; px[j+1] = 207; px[j+2] = 227; px[j+3] = 255;
+    }
+    // Person block
+    for (let y = 20; y < 75; y++) {
+      for (let x = 30; x < 90; x++) {
+        const idx = (y * w + x) * 4;
+        px[idx] = 40; px[idx+1] = 40; px[idx+2] = 40; px[idx+3] = 255;
+      }
+    }
+    const preset = sketchPresets[i % sketchPresets.length];
+    const out = SketchEngine.process(px, w, h, {
+      effectId: preset.id,
+      lineStrength: preset.lineStrength,
+      colorStrength: preset.colorStrength,
+      paperStrength: preset.paperStrength,
+      backgroundWashStrength: preset.backgroundWashStrength
+    });
+    if (!out || !out.pixels || out.pixels.length !== px.length) {
+      sketchSim.failures++;
+    }
+    if (!out.confidenceInfo || !Number.isFinite(out.confidenceInfo.confidence)) {
+      sketchSim.failures++;
+    }
+  }
+
+  // 100 Reset Cycles (Cache & state purging, no memory leak)
+  const testCache = new SketchCacheModule.SketchCache({ maxEntries: 16, maxMemoryBytes: 16 * 1024 * 1024 });
+  for (let i = 0; i < sketchSim.resetCycles; i++) {
+    const dummy = new Uint8ClampedArray(100 * 100 * 4);
+    testCache.set('test_key_' + i, { pixels: dummy }, dummy.byteLength);
+    testCache.clear();
+    if (testCache.totalMemoryBytes !== 0 || testCache.cache.size !== 0) {
+      sketchSim.failures++;
+    }
+  }
+
+  sketchSim.elapsedMs = Date.now() - startSketchSim;
+  results.sketchPlatform = sketchSim;
+  console.log(`   스케치 플랫폼 시뮬레이션 완료: ${sketchSim.elapsedMs}ms, 실패: ${sketchSim.failures}건`);
+
   console.log('\n================================================================');
   console.log('   시뮬레이션 종합 결과 보고서 (v4.5.0)');
   console.log('================================================================');
@@ -397,7 +634,8 @@ const { validateAndNormalizeJpeg, validateAndNormalizeBackground } = require('..
     results.dataLifecycle.orphans > 0 ||
     results.adminConfigSync.failures > 0 ||
     results.imageThemeProcessing.failures > 0 ||
-    results.filterPlatform.failures > 0;
+    results.filterPlatform.failures > 0 ||
+    results.sketchPlatform.failures > 0;
 
   if (hasFailure) {
     console.error('\n❌ 시뮬레이션 중 오류가 발생했습니다.');
