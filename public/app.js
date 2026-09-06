@@ -222,87 +222,17 @@
     showNotice.timer = setTimeout(() => node.classList.remove('show'), 3500);
   }
 
-  // Update live camera CSS filter approximation
+  // Live camera feed during shooting: Pure clean camera view with zero pre-filter
   function updateLiveCameraFilter() {
     const video = $('#video');
     if (!video) return;
-    const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(state.cameraFilterId) : null;
-    if (preset && window.FilterDefinitions.generateLiveCSSFilter) {
-      video.style.filter = window.FilterDefinitions.generateLiveCSSFilter(preset, 1.0);
-    } else {
-      video.style.filter = 'none';
-    }
+    video.style.filter = 'none';
   }
 
-  // Render recommended camera pre-shooting filter tray (8 Presets)
+  // Pre-shooting filter tray removed - effect selection is performed after shooting
   function renderCameraFilterTray() {
     const tray = $('#cameraFilterTray');
-    if (!tray) return;
-    tray.replaceChildren();
-
-    const recommended = (window.FilterDefinitions && window.FilterDefinitions.RECOMMENDED_FILTERS) || [
-      'original', 'maeum-warm', 'clear-today', 'bright-smile', 'peach-day', 'soft-film', 'clean-mono', 'fresh-moment'
-    ];
-
-    recommended.forEach((id) => {
-      const p = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(id) : { id, name: id };
-      if (!p) return;
-
-      const isSelected = state.cameraFilterId === p.id;
-      const card = document.createElement('div');
-      card.className = `camera-filter-card ${isSelected ? 'selected' : ''}`;
-      card.dataset.filterId = p.id;
-      card.setAttribute('role', 'radio');
-      card.setAttribute('aria-checked', isSelected ? 'true' : 'false');
-      card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-
-      const thumb = document.createElement('div');
-      thumb.className = 'cam-filter-thumb';
-      const thumbCanvas = document.createElement('canvas');
-      thumbCanvas.width = 88;
-      thumbCanvas.height = 72;
-      const tctx = thumbCanvas.getContext('2d');
-      const grad = tctx.createLinearGradient(0, 0, 88, 72);
-      grad.addColorStop(0, '#fcd34d');
-      grad.addColorStop(1, '#fb7185');
-      tctx.fillStyle = grad;
-      tctx.fillRect(0, 0, 88, 72);
-      tctx.fillStyle = '#fff';
-      tctx.beginPath();
-      tctx.arc(44, 30, 16, 0, Math.PI * 2);
-      tctx.fill();
-      tctx.beginPath();
-      tctx.arc(44, 75, 28, 0, Math.PI * 2);
-      tctx.fill();
-      if (window.FilterDefinitions && window.FilterDefinitions.generateLiveCSSFilter) {
-        thumbCanvas.style.filter = window.FilterDefinitions.generateLiveCSSFilter(p, 1.0);
-      }
-      thumb.append(thumbCanvas);
-
-      const label = document.createElement('span');
-      label.className = 'cam-filter-label';
-      label.textContent = p.name;
-
-      const badge = document.createElement('div');
-      badge.className = 'cam-check-badge';
-      badge.textContent = '✓';
-
-      card.append(thumb, label, badge);
-
-      card.addEventListener('click', () => {
-        if ($('#cameraFilterTrayWrapper')?.classList.contains('shooting-locked')) return;
-        state.cameraFilterId = p.id;
-        updateLiveCameraFilter();
-        tray.querySelectorAll('.camera-filter-card').forEach((c) => {
-          const match = c.dataset.filterId === p.id;
-          c.classList.toggle('selected', match);
-          c.setAttribute('aria-checked', match ? 'true' : 'false');
-          c.setAttribute('aria-pressed', match ? 'true' : 'false');
-        });
-      });
-
-      tray.append(card);
-    });
+    if (tray) tray.replaceChildren();
   }
 
   // Camera Ready & Initialization Flow
@@ -749,7 +679,7 @@
   function getPhotoFilter(photoId) {
     if (!state.photoFilters.has(photoId)) {
       state.photoFilters.set(photoId, {
-        filterId: state.cameraFilterId || 'original',
+        filterId: 'original',
         intensity: 100,
         adjustments: {
           brightness: 0,

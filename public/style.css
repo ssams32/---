@@ -920,22 +920,22 @@ main#app {
   align-items: center;
 }
 
-/* Camera Stage: Viewfinder + Bottom Filter Tray */
+/* Camera Stage: Pure Viewfinder Stage (Zero Pre-filter Distraction) */
 .camera-viewfinder-pane {
-  flex: 0 0 74%;
+  flex: 1 1 74%;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 0;
 }
 
 .camera-viewfinder-frame {
   width: 100%;
-  max-width: 860px;
+  max-width: 960px;
   height: auto;
-  max-height: calc(100vh - 210px);
+  max-height: calc(100vh - 120px);
   aspect-ratio: 4 / 3;
   background: #0A090D;
   border-radius: var(--radius-xl);
@@ -952,15 +952,15 @@ main#app {
 .camera-viewfinder-frame.ratio-landscape {
   aspect-ratio: 4 / 3;
   width: 100%;
-  max-width: 860px;
-  max-height: calc(100vh - 210px);
+  max-width: 960px;
+  max-height: calc(100vh - 120px);
   margin: auto;
 }
 
 .camera-viewfinder-frame.ratio-portrait {
   aspect-ratio: 3 / 4;
   height: 100%;
-  max-height: calc(100vh - 210px);
+  max-height: calc(100vh - 120px);
   width: auto;
   margin: auto;
 }
@@ -969,7 +969,7 @@ main#app {
   aspect-ratio: auto;
   width: 100%;
   height: 100%;
-  max-height: calc(100vh - 210px);
+  max-height: calc(100vh - 120px);
   margin: auto;
 }
 
