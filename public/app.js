@@ -42,11 +42,15 @@
     shots: [],
     selected: [],
     stickers: new Map(), // photoId -> Array<StickerModel>
+    photoFilters: new Map(), // photoId -> FilterState { filterId, intensity, adjustments, customLUT }
+    cameraFilterId: 'original',
+    activeFilterSlotIndex: 0,
+    activeFilterCategory: 'recommended',
     activePhotoId: null,
     activeStickerId: null,
     activeCategory: CFG.stickers?.categories?.[0]?.id || 'icheon_20th',
     currentThemeId: 'classic_light',
-    currentFilterId: 'normal',
+    currentFilterId: 'original',
     csrf: null,
     runId: 0,
     idleTimer: null,
@@ -55,7 +59,7 @@
     abortController: null
   };
 
-  const screens = ['start', 'permission', 'camera', 'select', 'edit', 'composing', 'result'];
+  const screens = ['start', 'permission', 'camera', 'select', 'filter', 'edit', 'composing', 'result'];
 
   // Apply Brand Strings to DOM
   function applyBranding() {
@@ -114,18 +118,19 @@
     resetInactivityTimer();
   }
 
-  // Update Top Progress Rail
+  // Update Top Progress Rail (5 Steps: 촬영 -> 사진 선택 -> 필터 -> 꾸미기 -> 완성)
   function updateProgressRail(currentScreen) {
     const stepMapping = {
       permission: 'camera',
       camera: 'camera',
       select: 'select',
+      filter: 'filter',
       edit: 'edit',
       composing: 'result',
       result: 'result'
     };
     const activeStep = stepMapping[currentScreen] || 'camera';
-    const stepOrder = ['camera', 'select', 'edit', 'result'];
+    const stepOrder = ['camera', 'select', 'filter', 'edit', 'result'];
     const activeIdx = stepOrder.indexOf(activeStep);
 
     $$('.rail-step').forEach((stepEl) => {
@@ -215,6 +220,89 @@
     showNotice.timer = setTimeout(() => node.classList.remove('show'), 3500);
   }
 
+  // Update live camera CSS filter approximation
+  function updateLiveCameraFilter() {
+    const video = $('#video');
+    if (!video) return;
+    const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(state.cameraFilterId) : null;
+    if (preset && window.FilterDefinitions.generateLiveCSSFilter) {
+      video.style.filter = window.FilterDefinitions.generateLiveCSSFilter(preset, 1.0);
+    } else {
+      video.style.filter = 'none';
+    }
+  }
+
+  // Render recommended camera pre-shooting filter tray (8 Presets)
+  function renderCameraFilterTray() {
+    const tray = $('#cameraFilterTray');
+    if (!tray) return;
+    tray.replaceChildren();
+
+    const recommended = (window.FilterDefinitions && window.FilterDefinitions.RECOMMENDED_FILTERS) || [
+      'original', 'maeum-warm', 'clear-today', 'bright-smile', 'peach-day', 'soft-film', 'clean-mono', 'fresh-moment'
+    ];
+
+    recommended.forEach((id) => {
+      const p = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(id) : { id, name: id };
+      if (!p) return;
+
+      const isSelected = state.cameraFilterId === p.id;
+      const card = document.createElement('div');
+      card.className = `camera-filter-card ${isSelected ? 'selected' : ''}`;
+      card.dataset.filterId = p.id;
+      card.setAttribute('role', 'radio');
+      card.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+      card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+      const thumb = document.createElement('div');
+      thumb.className = 'cam-filter-thumb';
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = 88;
+      thumbCanvas.height = 72;
+      const tctx = thumbCanvas.getContext('2d');
+      const grad = tctx.createLinearGradient(0, 0, 88, 72);
+      grad.addColorStop(0, '#fcd34d');
+      grad.addColorStop(1, '#fb7185');
+      tctx.fillStyle = grad;
+      tctx.fillRect(0, 0, 88, 72);
+      tctx.fillStyle = '#fff';
+      tctx.beginPath();
+      tctx.arc(44, 30, 16, 0, Math.PI * 2);
+      tctx.fill();
+      tctx.beginPath();
+      tctx.arc(44, 75, 28, 0, Math.PI * 2);
+      tctx.fill();
+      if (window.FilterDefinitions && window.FilterDefinitions.generateLiveCSSFilter) {
+        thumbCanvas.style.filter = window.FilterDefinitions.generateLiveCSSFilter(p, 1.0);
+      }
+      thumb.append(thumbCanvas);
+
+      const label = document.createElement('span');
+      label.className = 'cam-filter-label';
+      label.textContent = p.name;
+
+      const badge = document.createElement('div');
+      badge.className = 'cam-check-badge';
+      badge.textContent = '✓';
+
+      card.append(thumb, label, badge);
+
+      card.addEventListener('click', () => {
+        if ($('#cameraFilterTrayWrapper')?.classList.contains('shooting-locked')) return;
+        state.cameraFilterId = p.id;
+        updateLiveCameraFilter();
+        tray.querySelectorAll('.camera-filter-card').forEach((c) => {
+          const match = c.dataset.filterId === p.id;
+          c.classList.toggle('selected', match);
+          c.setAttribute('aria-checked', match ? 'true' : 'false');
+          c.setAttribute('aria-pressed', match ? 'true' : 'false');
+        });
+      });
+
+      tray.append(card);
+    });
+  }
+
   // Camera Ready & Initialization Flow
   async function initializeCamera() {
     $('#cameraErrorBox')?.setAttribute('hidden', 'true');
@@ -256,6 +344,8 @@
       }
 
       show('camera');
+      renderCameraFilterTray();
+      updateLiveCameraFilter();
       startShootingSequence();
     } catch (err) {
       console.warn('Camera access denied or failed:', err);
@@ -543,6 +633,333 @@
   }
 
   // ===================================================================
+  // FIRST-PARTY CUSTOM CAMERA-FILTER STAGE CONTROLLER (v4.5.0)
+  // ===================================================================
+  function getPhotoFilter(photoId) {
+    if (!state.photoFilters.has(photoId)) {
+      state.photoFilters.set(photoId, {
+        filterId: state.cameraFilterId || 'original',
+        intensity: 100,
+        adjustments: {
+          brightness: 0,
+          contrast: 0,
+          saturation: 0,
+          temperature: 0,
+          tint: 0
+        },
+        customLUT: null
+      });
+    }
+    return state.photoFilters.get(photoId);
+  }
+
+  function setPhotoFilter(photoId, filterState) {
+    state.photoFilters.set(photoId, filterState);
+  }
+
+  function initFilterStage() {
+    state.activeFilterSlotIndex = 0;
+    state.activeFilterCategory = 'recommended';
+
+    // Prepopulate per-photo filter states
+    state.selected.forEach((photoId) => {
+      getPhotoFilter(photoId);
+    });
+
+    renderFilterCategoryTabs();
+    renderFilterCardsTray();
+    selectActiveFilterSlot(0);
+    renderAllFilterSlots();
+  }
+
+  function renderFilterCategoryTabs() {
+    const track = $('#filterCategoryTrack');
+    if (!track) return;
+    track.replaceChildren();
+
+    const categories = (window.FilterDefinitions && window.FilterDefinitions.FILTER_CATEGORIES) || [
+      { id: 'recommended', label: '⭐ 추천' },
+      { id: 'natural', label: '🌿 내추럴' },
+      { id: 'bright', label: '✨ 화사' },
+      { id: 'warm', label: '🌅 웜톤' },
+      { id: 'cool', label: '❄️ 쿨톤' },
+      { id: 'film', label: '🎞️ 필름' },
+      { id: 'monochrome', label: '🖤 모노' },
+      { id: 'all', label: '전체' }
+    ];
+
+    categories.forEach((cat) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `filter-cat-pill ${state.activeFilterCategory === cat.id ? 'active' : ''}`;
+      btn.dataset.category = cat.id;
+      btn.textContent = cat.label;
+      btn.addEventListener('click', () => {
+        state.activeFilterCategory = cat.id;
+        track.querySelectorAll('.filter-cat-pill').forEach((b) => {
+          b.classList.toggle('active', b.dataset.category === cat.id);
+        });
+        renderFilterCardsTray();
+      });
+      track.append(btn);
+    });
+  }
+
+  function renderFilterCardsTray() {
+    const scroller = $('#filterCardsScroller');
+    if (!scroller) return;
+    scroller.replaceChildren();
+
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    const currentFilter = activePhotoId ? getPhotoFilter(activePhotoId) : null;
+    const currentFilterId = currentFilter ? currentFilter.filterId : 'original';
+
+    const allPresets = (window.FilterDefinitions && window.FilterDefinitions.FILTER_PRESETS) || [];
+    const cat = state.activeFilterCategory;
+    const presets = allPresets.filter((p) => cat === 'all' || p.category === cat);
+
+    presets.forEach((preset) => {
+      const isSelected = preset.id === currentFilterId;
+      const card = document.createElement('div');
+      card.className = `filter-preset-card ${isSelected ? 'selected' : ''}`;
+      card.dataset.filterId = preset.id;
+      card.setAttribute('role', 'radio');
+      card.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+      card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+
+      const thumb = document.createElement('div');
+      thumb.className = 'preset-thumb-box';
+
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = 82;
+      thumbCanvas.height = 66;
+      const tctx = thumbCanvas.getContext('2d');
+
+      const activeShot = state.shots.find((s) => s.id === activePhotoId);
+      if (activeShot && activeShot.url) {
+        const img = new Image();
+        img.onload = () => {
+          drawCover(tctx, img, 0, 0, 82, 66);
+          if (window.FilterDefinitions && window.FilterDefinitions.generateLiveCSSFilter) {
+            thumbCanvas.style.filter = window.FilterDefinitions.generateLiveCSSFilter(preset, 1.0);
+          }
+        };
+        img.src = activeShot.url;
+      } else {
+        tctx.fillStyle = '#C4B5FD';
+        tctx.fillRect(0, 0, 82, 66);
+      }
+      thumb.append(thumbCanvas);
+
+      const title = document.createElement('span');
+      title.className = 'preset-card-title';
+      title.textContent = preset.name;
+
+      const check = document.createElement('div');
+      check.className = 'preset-check-tag';
+      check.textContent = '✓';
+
+      card.append(thumb, title, check);
+
+      card.addEventListener('click', () => {
+        applyFilterToActiveSlot(preset.id);
+      });
+
+      scroller.append(card);
+    });
+  }
+
+  function selectActiveFilterSlot(slotIndex) {
+    state.activeFilterSlotIndex = slotIndex;
+    const quadSlots = $$('#filterQuadSlots .filter-slot-card');
+    quadSlots.forEach((slot, idx) => {
+      slot.classList.toggle('active', idx === slotIndex);
+    });
+
+    const badge = $('#filterActiveSlotBadge');
+    if (badge) badge.textContent = `${slotIndex + 1}번 사진 선택됨`;
+
+    const photoId = state.selected[slotIndex];
+    if (!photoId) return;
+    const fs = getPhotoFilter(photoId);
+
+    // Sync filter cards scroller
+    $('#filterCardsScroller')?.querySelectorAll('.filter-preset-card').forEach((c) => {
+      const match = c.dataset.filterId === fs.filterId;
+      c.classList.toggle('selected', match);
+      c.setAttribute('aria-checked', match ? 'true' : 'false');
+      c.setAttribute('aria-pressed', match ? 'true' : 'false');
+    });
+
+    // Sync intensity slider
+    const intensitySlider = $('#filterIntensitySlider');
+    const intensityBadge = $('#filterIntensityBadge');
+    if (intensitySlider) intensitySlider.value = fs.intensity;
+    if (intensityBadge) intensityBadge.textContent = `${fs.intensity}%`;
+
+    // Sync manual adjustment sliders
+    const adj = fs.adjustments || {};
+    const setManualInput = (id, val, mult = 100) => {
+      const inp = $('#inputManual' + id);
+      const lbl = $('#lblManual' + id);
+      const roundVal = Math.round((val || 0) * mult);
+      if (inp) inp.value = roundVal;
+      if (lbl) lbl.textContent = roundVal > 0 ? `+${roundVal}` : String(roundVal);
+    };
+    setManualInput('Brightness', adj.brightness);
+    setManualInput('Contrast', adj.contrast);
+    setManualInput('Saturation', adj.saturation);
+    setManualInput('Temperature', adj.temperature);
+    setManualInput('Tint', adj.tint);
+  }
+
+  async function renderFilterSlot(slotIndex) {
+    const photoId = state.selected[slotIndex];
+    if (!photoId) return;
+
+    const canvas = $('#filterCanvas' + slotIndex);
+    if (!canvas) return;
+
+    const shot = state.shots.find((s) => s.id === photoId);
+    if (!shot) return;
+
+    const fs = getPhotoFilter(photoId);
+    const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
+
+    const nameTag = $('#filterSlotName' + slotIndex);
+    if (nameTag && preset) {
+      nameTag.textContent = `${preset.name} (${fs.intensity}%)`;
+    }
+
+    try {
+      const img = await loadHtmlImage(shot.url);
+      canvas.width = 360;
+      canvas.height = 270;
+
+      if (window.filterClient) {
+        await window.filterClient.renderPreviewToCanvas(
+          canvas,
+          img,
+          photoId,
+          preset,
+          fs.intensity / 100,
+          fs.adjustments
+        );
+      } else {
+        const ctx = canvas.getContext('2d');
+        drawCover(ctx, img, 0, 0, canvas.width, canvas.height);
+      }
+    } catch (err) {
+      console.warn(`Error rendering filter preview for slot ${slotIndex}:`, err);
+    }
+  }
+
+  async function renderAllFilterSlots() {
+    for (let i = 0; i < state.selected.length; i++) {
+      await renderFilterSlot(i);
+    }
+  }
+
+  function applyFilterToActiveSlot(filterId) {
+    const photoId = state.selected[state.activeFilterSlotIndex];
+    if (!photoId) return;
+
+    const fs = getPhotoFilter(photoId);
+    fs.filterId = filterId;
+    setPhotoFilter(photoId, fs);
+
+    // Update UI
+    $('#filterCardsScroller')?.querySelectorAll('.filter-preset-card').forEach((c) => {
+      const match = c.dataset.filterId === filterId;
+      c.classList.toggle('selected', match);
+      c.setAttribute('aria-checked', match ? 'true' : 'false');
+      c.setAttribute('aria-pressed', match ? 'true' : 'false');
+    });
+
+    renderFilterSlot(state.activeFilterSlotIndex);
+  }
+
+  let intensityDebounceTimer = null;
+  function updateActiveSlotIntensity(val) {
+    const photoId = state.selected[state.activeFilterSlotIndex];
+    if (!photoId) return;
+
+    const fs = getPhotoFilter(photoId);
+    fs.intensity = Math.max(0, Math.min(100, Number(val)));
+    setPhotoFilter(photoId, fs);
+
+    const badge = $('#filterIntensityBadge');
+    if (badge) badge.textContent = `${fs.intensity}%`;
+
+    clearTimeout(intensityDebounceTimer);
+    intensityDebounceTimer = setTimeout(() => {
+      renderFilterSlot(state.activeFilterSlotIndex);
+    }, 40);
+  }
+
+  let manualDebounceTimer = null;
+  function updateActiveSlotManual(param, rawVal, mult = 100) {
+    const photoId = state.selected[state.activeFilterSlotIndex];
+    if (!photoId) return;
+
+    const fs = getPhotoFilter(photoId);
+    if (!fs.adjustments) fs.adjustments = {};
+    fs.adjustments[param] = Number(rawVal) / mult;
+    setPhotoFilter(photoId, fs);
+
+    clearTimeout(manualDebounceTimer);
+    manualDebounceTimer = setTimeout(() => {
+      renderFilterSlot(state.activeFilterSlotIndex);
+    }, 50);
+  }
+
+  function applyActiveFilterToAll() {
+    const activePhotoId = state.selected[state.activeFilterSlotIndex];
+    if (!activePhotoId) return;
+
+    const sourceFs = getPhotoFilter(activePhotoId);
+    state.selected.forEach((pid) => {
+      setPhotoFilter(pid, {
+        filterId: sourceFs.filterId,
+        intensity: sourceFs.intensity,
+        adjustments: Object.assign({}, sourceFs.adjustments),
+        customLUT: sourceFs.customLUT
+      });
+    });
+
+    renderAllFilterSlots();
+  }
+
+  function resetActiveFilter() {
+    const photoId = state.selected[state.activeFilterSlotIndex];
+    if (!photoId) return;
+
+    setPhotoFilter(photoId, {
+      filterId: 'original',
+      intensity: 100,
+      adjustments: { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0 },
+      customLUT: null
+    });
+
+    selectActiveFilterSlot(state.activeFilterSlotIndex);
+    renderFilterSlot(state.activeFilterSlotIndex);
+  }
+
+  function resetAllFilters() {
+    state.selected.forEach((photoId) => {
+      setPhotoFilter(photoId, {
+        filterId: 'original',
+        intensity: 100,
+        adjustments: { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0 },
+        customLUT: null
+      });
+    });
+
+    selectActiveFilterSlot(state.activeFilterSlotIndex);
+    renderAllFilterSlots();
+  }
+
+  // ===================================================================
   // DECORATION & STICKER EDITOR CONTROLLER
   // ===================================================================
   function ensureStickerList(photoId) {
@@ -604,11 +1021,23 @@
       cell.className = `strip-slot preview-cell ${isActive ? 'active active-photo' : ''}`;
       cell.dataset.photoId = photoId;
 
-      const img = document.createElement('img');
-      img.className = 'slot-photo';
+      const slotCanvas = document.createElement('canvas');
+      slotCanvas.className = 'slot-photo';
+      slotCanvas.width = 480;
+      slotCanvas.height = 360;
       const shot = state.shots.find((s) => s.id === photoId);
-      if (shot) img.src = shot.url;
-      img.alt = `사진 ${index + 1}`;
+      if (shot) {
+        const fs = getPhotoFilter(photoId);
+        const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
+        loadHtmlImage(shot.url).then((imgEl) => {
+          if (window.filterClient) {
+            window.filterClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, preset, fs.intensity / 100, fs.adjustments);
+          } else {
+            const sctx = slotCanvas.getContext('2d');
+            drawCover(sctx, imgEl, 0, 0, slotCanvas.width, slotCanvas.height);
+          }
+        }).catch(() => {});
+      }
 
       if (isActive) {
         const pill = document.createElement('div');
@@ -617,9 +1046,9 @@
         cell.append(pill);
       }
 
-      cell.append(img);
+      cell.append(slotCanvas);
       cell.addEventListener('pointerdown', (e) => {
-        if (e.target === cell || e.target === img) {
+        if (e.target === cell || e.target === slotCanvas) {
           selectActivePhoto(photoId);
         }
       });
@@ -954,11 +1383,6 @@
     const cellW = (f.width - f.padding * 2 - f.gap) / 2;
     const cellH = (f.height - top - bottom - f.gap) / 2;
 
-    const loadedImages = await Promise.all(state.selected.map((id) => {
-      const s = state.shots.find((x) => x.id === id);
-      return s ? loadHtmlImage(s.url) : null;
-    }));
-
     // Preload image stickers across all selected photos
     const stickerImageMap = new Map();
     for (const pid of state.selected) {
@@ -970,10 +1394,12 @@
       }
     }
 
+    // Process each selected photo sequentially to protect iPad Safari memory (no Promise.all for pixel engine)
     for (let i = 0; i < 4; i++) {
       const photoId = state.selected[i];
-      const img = loadedImages[i];
-      if (!img) continue;
+      const s = state.shots.find((x) => x.id === photoId);
+      if (!s) continue;
+      const img = await loadHtmlImage(s.url);
 
       const col = i % 2;
       const row = Math.floor(i / 2);
@@ -989,7 +1415,38 @@
       ctx.rect(x, y, cellW, cellH);
       ctx.clip();
 
-      drawCover(ctx, img, x, y, cellW, cellH);
+      // Sequential Offscreen Filter Rendering
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = Math.round(cellW);
+      offCanvas.height = Math.round(cellH);
+      const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+      drawCover(offCtx, img, 0, 0, offCanvas.width, offCanvas.height);
+
+      const filterState = getPhotoFilter(photoId);
+      const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(filterState.filterId) : null;
+
+      if (preset && (preset.id !== 'original' || (filterState.adjustments && Object.values(filterState.adjustments).some((v) => v !== 0)))) {
+        const rawData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+        const combinedParams = window.FilterDefinitions
+          ? window.FilterDefinitions.interpolateParameters(preset, filterState.intensity / 100, filterState.adjustments)
+          : preset;
+        if (filterState.customLUT) combinedParams.lut = filterState.customLUT;
+
+        if (window.PixelEngine && window.PixelEngine.processPixelPipeline) {
+          window.PixelEngine.processPixelPipeline(rawData, combinedParams, {
+            intensity: filterState.intensity / 100,
+            grainSeed: photoId,
+            photoId
+          });
+          offCtx.putImageData(rawData, 0, 0);
+        }
+      }
+
+      ctx.drawImage(offCanvas, x, y);
+
+      // Immediately release offscreen buffer
+      offCanvas.width = 1;
+      offCanvas.height = 1;
 
       // Render Stickers on Photo with Aspect Ratio Preserved
       for (const st of ensureStickerList(photoId)) {
@@ -1190,9 +1647,25 @@
 
     state.selected = [];
     state.stickers.clear();
+    state.photoFilters.clear();
+    state.cameraFilterId = 'original';
+    state.activeFilterSlotIndex = 0;
     state.activePhotoId = null;
     state.activeStickerId = null;
     state.csrf = null;
+
+    if (window.filterClient) {
+      window.filterClient.reset();
+    }
+    if (window.CurveEngine && window.CurveEngine.clearCurveCache) {
+      window.CurveEngine.clearCurveCache();
+    }
+    if (window.LUTParser && window.LUTParser.clearLUTCache) {
+      window.LUTParser.clearLUTCache();
+    }
+
+    const video = $('#video');
+    if (video) video.style.filter = 'none';
 
     $('#shotCount').textContent = '1';
     $('#photoGrid')?.replaceChildren();
@@ -1202,6 +1675,18 @@
     $('#cameraErrorBox')?.setAttribute('hidden', 'true');
     $('#uploadErrorBox')?.setAttribute('hidden', 'true');
     $('#resetWarningBanner')?.classList.remove('show');
+
+    // Clean quad preview canvases
+    for (let i = 0; i < 4; i++) {
+      const c = $('#filterCanvas' + i);
+      if (c) {
+        c.getContext('2d')?.clearRect(0, 0, c.width, c.height);
+        c.width = 1;
+        c.height = 1;
+      }
+      const tag = $('#filterSlotName' + i);
+      if (tag) tag.textContent = '원본 (Original)';
+    }
 
     const canvas = $('#finalCanvas');
     if (canvas) {
@@ -1239,19 +1724,84 @@
     show('start');
   });
 
-  // Screen 4: Selection
+  // Screen 4: Selection -> Filter Stage
   $('#retakeBtn')?.addEventListener('click', () => show('permission'));
   $('#editBtn')?.addEventListener('click', () => {
+    initFilterStage();
+    show('filter');
+  });
+
+  // Screen 5: Filter Stage Action Handlers
+  $$('#filterQuadSlots .filter-slot-card').forEach((slot) => {
+    slot.addEventListener('click', () => {
+      const idx = Number(slot.dataset.slot);
+      selectActiveFilterSlot(idx);
+    });
+  });
+
+  $('#btnApplyAllFilters')?.addEventListener('click', applyActiveFilterToAll);
+  $('#btnResetActiveFilter')?.addEventListener('click', resetActiveFilter);
+  $('#btnResetAllFilters')?.addEventListener('click', resetAllFilters);
+
+  $('#filterIntensitySlider')?.addEventListener('input', (e) => {
+    updateActiveSlotIntensity(e.target.value);
+  });
+
+  $('#inputManualBrightness')?.addEventListener('input', (e) => {
+    const el = $('#lblManualBrightness');
+    if (el) el.textContent = Number(e.target.value) > 0 ? `+${e.target.value}` : e.target.value;
+    updateActiveSlotManual('brightness', e.target.value);
+  });
+  $('#inputManualContrast')?.addEventListener('input', (e) => {
+    const el = $('#lblManualContrast');
+    if (el) el.textContent = Number(e.target.value) > 0 ? `+${e.target.value}` : e.target.value;
+    updateActiveSlotManual('contrast', e.target.value);
+  });
+  $('#inputManualSaturation')?.addEventListener('input', (e) => {
+    const el = $('#lblManualSaturation');
+    if (el) el.textContent = Number(e.target.value) > 0 ? `+${e.target.value}` : e.target.value;
+    updateActiveSlotManual('saturation', e.target.value);
+  });
+  $('#inputManualTemperature')?.addEventListener('input', (e) => {
+    const el = $('#lblManualTemperature');
+    if (el) el.textContent = Number(e.target.value) > 0 ? `+${e.target.value}` : e.target.value;
+    updateActiveSlotManual('temperature', e.target.value);
+  });
+  $('#inputManualTint')?.addEventListener('input', (e) => {
+    const el = $('#lblManualTint');
+    if (el) el.textContent = Number(e.target.value) > 0 ? `+${e.target.value}` : e.target.value;
+    updateActiveSlotManual('tint', e.target.value);
+  });
+
+  $('#btnResetManualAdjustments')?.addEventListener('click', () => {
+    const photoId = state.selected[state.activeFilterSlotIndex];
+    if (photoId) {
+      const fs = getPhotoFilter(photoId);
+      fs.adjustments = { brightness: 0, contrast: 0, saturation: 0, temperature: 0, tint: 0 };
+      setPhotoFilter(photoId, fs);
+      selectActiveFilterSlot(state.activeFilterSlotIndex);
+      renderFilterSlot(state.activeFilterSlotIndex);
+    }
+  });
+
+  $('#btnFilterBack')?.addEventListener('click', () => {
+    show('select');
+  });
+
+  $('#btnFilterNext')?.addEventListener('click', () => {
     renderDecorationEditor();
     show('edit');
   });
 
-  // Screen 5: Editor
+  // Screen 6: Editor
   $('#smaller')?.addEventListener('click', () => modifyActiveSticker('smaller'));
   $('#bigger')?.addEventListener('click', () => modifyActiveSticker('bigger'));
   $('#rotate')?.addEventListener('click', () => modifyActiveSticker('rotate'));
   $('#deleteSticker')?.addEventListener('click', () => modifyActiveSticker('delete'));
-  $('#backSelectBtn')?.addEventListener('click', () => show('select'));
+  $('#backSelectBtn')?.addEventListener('click', () => {
+    initFilterStage();
+    show('filter');
+  });
   $('#finishBtn')?.addEventListener('click', executeCompletionWorkflow);
 
   // Screen 6: Composing / Upload retry

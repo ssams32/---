@@ -37,13 +37,18 @@
         <span class="step-label">사진 선택</span>
       </div>
       <div class="rail-divider"></div>
-      <div class="rail-step" data-step="edit">
+      <div class="rail-step" data-step="filter">
         <span class="step-dot">3</span>
+        <span class="step-label">필터</span>
+      </div>
+      <div class="rail-divider"></div>
+      <div class="rail-step" data-step="edit">
+        <span class="step-dot">4</span>
         <span class="step-label">꾸미기</span>
       </div>
       <div class="rail-divider"></div>
       <div class="rail-step" data-step="result">
-        <span class="step-dot">4</span>
+        <span class="step-dot">5</span>
         <span class="step-label">완성</span>
       </div>
     </nav>
@@ -180,6 +185,13 @@
               <span id="countdown">3</span>
             </div>
           </div>
+
+          <!-- Camera Pre-shooting Recommended Filter Tray (8 Presets) -->
+          <div class="camera-filter-tray-wrapper" id="cameraFilterTrayWrapper" aria-label="추천 필터 트레이">
+            <div class="camera-filter-tray" id="cameraFilterTray" role="radiogroup" aria-label="카메라 실시간 추천 필터">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+          </div>
         </div>
 
         <!-- Status & Control Slim Dock (Hard-capped at 74px) -->
@@ -240,6 +252,162 @@
           <div class="selection-actions-dock">
             <button class="btn-kiosk-secondary" id="retakeBtn">다시 촬영</button>
             <button class="btn-kiosk-primary" id="editBtn" disabled>4장 선택 완료 ›</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
+         13. SCREEN 4: FILTER STAGE (62% PREVIEW : 38% FILTER CONTROLS)
+         ============================================================= -->
+    <section id="filter" class="screen" aria-labelledby="filterHeading">
+      <div class="filter-split-layout">
+        <!-- Left: Destination 4-Cut Filter Preview & Slots (62%) -->
+        <div class="filter-preview-pane">
+          <div class="filter-pane-header">
+            <div>
+              <h2 class="filter-title-heading" id="filterHeading">사진별 감성 필터를 입혀보세요</h2>
+              <p class="filter-sub-heading">사진을 터치해 각각 다른 필터를 적용하거나 한 번에 통일할 수 있어요</p>
+            </div>
+            <div class="filter-active-slot-pill" id="filterActiveSlotBadge">1번 사진 선택됨</div>
+          </div>
+
+          <div class="filter-quad-container" id="filterQuadContainer">
+            <div class="filter-mockup-frame" id="filterMockupFrame">
+              <div class="filter-mockup-header">
+                <span class="fm-title">이천시정신건강복지센터 20주년</span>
+                <span class="fm-subtitle">MAEUM FOUR CUTS</span>
+              </div>
+              <div class="filter-four-grid" id="filterQuadSlots">
+                <div class="filter-slot-card active" data-slot="0" tabindex="0" role="button" aria-label="1번 사진 선택">
+                  <div class="filter-slot-canvas-wrap">
+                    <canvas class="filter-slot-canvas" id="filterCanvas0"></canvas>
+                  </div>
+                  <div class="filter-slot-badge">1</div>
+                  <div class="filter-slot-name-tag" id="filterSlotName0">원본 (Original)</div>
+                </div>
+                <div class="filter-slot-card" data-slot="1" tabindex="0" role="button" aria-label="2번 사진 선택">
+                  <div class="filter-slot-canvas-wrap">
+                    <canvas class="filter-slot-canvas" id="filterCanvas1"></canvas>
+                  </div>
+                  <div class="filter-slot-badge">2</div>
+                  <div class="filter-slot-name-tag" id="filterSlotName1">원본 (Original)</div>
+                </div>
+                <div class="filter-slot-card" data-slot="2" tabindex="0" role="button" aria-label="3번 사진 선택">
+                  <div class="filter-slot-canvas-wrap">
+                    <canvas class="filter-slot-canvas" id="filterCanvas2"></canvas>
+                  </div>
+                  <div class="filter-slot-badge">3</div>
+                  <div class="filter-slot-name-tag" id="filterSlotName2">원본 (Original)</div>
+                </div>
+                <div class="filter-slot-card" data-slot="3" tabindex="0" role="button" aria-label="4번 사진 선택">
+                  <div class="filter-slot-canvas-wrap">
+                    <canvas class="filter-slot-canvas" id="filterCanvas3"></canvas>
+                  </div>
+                  <div class="filter-slot-badge">4</div>
+                  <div class="filter-slot-name-tag" id="filterSlotName3">원본 (Original)</div>
+                </div>
+              </div>
+              <div class="filter-mockup-footer">
+                <span>당신의 오늘을 늘 응원합니다 ✨</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Action Bar under Preview -->
+          <div class="filter-quick-bar">
+            <button type="button" class="btn-filter-action" id="btnApplyAllFilters">
+              <span class="btn-icon">✦</span>
+              <span>4장 전체 동일 적용</span>
+            </button>
+            <button type="button" class="btn-filter-action" id="btnResetActiveFilter">
+              <span>이 사진 원래대로</span>
+            </button>
+            <button type="button" class="btn-filter-action" id="btnResetAllFilters">
+              <span>전체 원래대로</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Filter Selection & Adjustments (38%) -->
+        <div class="filter-tool-pane">
+          <!-- Category Tabs -->
+          <div class="filter-category-track" id="filterCategoryTrack" role="tablist" aria-label="필터 카테고리">
+            <!-- Rendered by app.js: 추천, 내추럴, 화사, 웜톤, 쿨톤, 필름, 모노 -->
+          </div>
+
+          <!-- Horizontal Cards Tray -->
+          <div class="filter-cards-scroller" id="filterCardsScroller" role="radiogroup" aria-label="필터 목록">
+            <!-- Filter cards rendered dynamically by app.js -->
+          </div>
+
+          <!-- Filter Intensity Slider -->
+          <div class="filter-slider-card">
+            <div class="slider-header-row">
+              <label for="filterIntensitySlider" class="slider-title">필터 농도</label>
+              <span class="slider-value-badge" id="filterIntensityBadge">100%</span>
+            </div>
+            <input type="range" id="filterIntensitySlider" class="kiosk-range-slider" min="0" max="100" value="100">
+            <div class="slider-ticks-row">
+              <span>0% (원본)</span>
+              <span>50%</span>
+              <span>100% (완전 적용)</span>
+            </div>
+          </div>
+
+          <!-- Collapsed Manual Adjustments Details -->
+          <details class="filter-manual-accordion" id="filterManualAccordion">
+            <summary class="manual-accordion-summary">
+              <span class="summary-left">
+                <span class="summary-icon">⚙</span>
+                <span>세부 조절 (선택 사항)</span>
+              </span>
+              <span class="summary-arrow">▾</span>
+            </summary>
+            <div class="manual-controls-grid">
+              <div class="manual-item">
+                <div class="manual-item-header">
+                  <span>밝기</span>
+                  <span id="lblManualBrightness">0</span>
+                </div>
+                <input type="range" id="inputManualBrightness" class="manual-slider" min="-20" max="20" value="0">
+              </div>
+              <div class="manual-item">
+                <div class="manual-item-header">
+                  <span>대비</span>
+                  <span id="lblManualContrast">0</span>
+                </div>
+                <input type="range" id="inputManualContrast" class="manual-slider" min="-20" max="20" value="0">
+              </div>
+              <div class="manual-item">
+                <div class="manual-item-header">
+                  <span>채도</span>
+                  <span id="lblManualSaturation">0</span>
+                </div>
+                <input type="range" id="inputManualSaturation" class="manual-slider" min="-30" max="30" value="0">
+              </div>
+              <div class="manual-item">
+                <div class="manual-item-header">
+                  <span>색온도</span>
+                  <span id="lblManualTemperature">0</span>
+                </div>
+                <input type="range" id="inputManualTemperature" class="manual-slider" min="-20" max="20" value="0">
+              </div>
+              <div class="manual-item">
+                <div class="manual-item-header">
+                  <span>색조</span>
+                  <span id="lblManualTint">0</span>
+                </div>
+                <input type="range" id="inputManualTint" class="manual-slider" min="-15" max="15" value="0">
+              </div>
+              <button type="button" class="btn-manual-reset-all" id="btnResetManualAdjustments">세부 조절 초기화</button>
+            </div>
+          </details>
+
+          <!-- Primary Action Dock -->
+          <div class="filter-nav-dock">
+            <button type="button" class="btn-kiosk-secondary" id="btnFilterBack">‹ 사진 다시 고르기</button>
+            <button type="button" class="btn-kiosk-primary" id="btnFilterNext">스티커로 꾸미기 ›</button>
           </div>
         </div>
       </div>
@@ -409,7 +577,12 @@
   <!-- Photo Printer dedicated full-bleed print container -->
   <div id="printArea" class="print-only" aria-hidden="true"></div>
 
-  <canvas id="captureCanvas" hidden></canvas>
+  <script src="/filters/curve-engine.js?v=4.5.0"></script>
+  <script src="/filters/lut-parser.js?v=4.5.0"></script>
+  <script src="/filters/filter-definitions.js?v=4.5.0"></script>
+  <script src="/filters/pixel-engine.js?v=4.5.0"></script>
+  <script src="/filters/filter-cache.js?v=4.5.0"></script>
+  <script src="/filters/filter-client.js?v=4.5.0"></script>
   <script src="/config.js?v=4.5.0"></script>
   <script src="/app.js?v=4.5.0"></script>
 </body>

@@ -58,6 +58,22 @@ app.get('/admin',(req,res)=>{
   res.type('html').send('<!doctype html><h1>Admin UI loading...</h1>');
 });
 
+app.get('/dev/filter-lab',(req,res)=>{
+  if(process.env.ENABLE_FILTER_LAB!=='true'){
+    return res.status(404).type('text/plain').send('Not Found');
+  }
+  const admin=verifyAdminCookie(cfg.adminSecret,cookies(req).pb_admin);
+  if(!admin){
+    return res.status(401).type('html').send('<!doctype html><html><head><meta charset="utf-8"><title>Filter Lab - 인증 필요</title><style>body{font-family:system-ui,-apple-system,sans-serif;padding:40px;background:#f8fafc;color:#1e293b;text-align:center}.box{max-width:420px;margin:40px auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.08)}a{color:#6366f1;text-decoration:none;font-weight:600}</style></head><body><div class="box"><h2>Filter Lab 인증 필요</h2><p style="margin-top:12px;color:#64748b">Filter Lab에 접근하려면 운영자(관리자) 로그인이 필요합니다.</p><p style="margin-top:20px"><a href="/admin">관리자 로그인 화면으로 이동 ›</a></p></div></body></html>');
+  }
+  const labHtmlPath=path.join(__dirname,'..','server','filter-lab.html');
+  if(fs.existsSync(labHtmlPath)){
+    res.set('Content-Type','text/html; charset=utf-8');
+    return res.sendFile(labHtmlPath);
+  }
+  res.status(404).type('text/plain').send('Filter Lab UI not found');
+});
+
 app.post('/api/admin/login',async(req,res,next)=>{
   try{
     const {adminLimit}=getClients();

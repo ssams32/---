@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>마음 네컷 - Developer Filter Lab (Secure v4.5)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #ec4899;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-title { font-size: 16px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .badge-dev { background: #4338ca; color: #c7d2fe; font-size: 11px; padding: 2px 8px; border-radius: 9999px; font-weight: 600; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    button, .btn {
+      background: #334155;
+      color: #fff;
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    button:hover, .btn:hover { background: #475569; }
+    button.primary, .btn.primary { background: var(--primary); border-color: var(--primary); }
+    button.primary:hover, .btn.primary:hover { background: var(--primary-hover); }
+    select, input[type="text"], input[type="number"] {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Left: Viewport / Canvas */
+    .viewport-panel {
+      position: relative;
+      background: #020617;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      user-select: none;
+    }
+    .canvas-container {
+      position: relative;
+      max-width: 95%;
+      max-height: 85%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+    }
+    #mainCanvas {
+      display: block;
+      max-width: 100%;
+      max-height: 80vh;
+      object-fit: contain;
+    }
+    .split-divider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: #fff;
+      box-shadow: 0 0 8px rgba(0,0,0,0.8);
+      cursor: ew-resize;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    .split-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .viewport-bar {
+      position: absolute;
+      bottom: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      z-index: 20;
+    }
+
+    /* Right: Controls Sidebar */
+    .controls-panel {
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-section {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+    }
+    .panel-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+    .control-label {
+      width: 90px;
+      color: #cbd5e1;
+      font-size: 12px;
+    }
+    .control-slider {
+      flex: 1;
+      accent-color: var(--primary);
+    }
+    .control-value {
+      width: 42px;
+      text-align: right;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* Curve Editor Canvas */
+    .curve-box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+    }
+    #curveCanvas {
+      width: 100%;
+      height: 140px;
+      background: #020617;
+      border-radius: 4px;
+      cursor: crosshair;
+    }
+
+    .report-box {
+      font-family: monospace;
+      font-size: 11px;
+      background: #020617;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #1e293b;
+      max-height: 90px;
+      overflow-y: auto;
+      color: #38bdf8;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <div class="header-title">
+        <span>마음 네컷 Filter Lab</span>
+        <span class="badge-dev">DEV SECURE</span>
+      </div>
+      <select id="presetSelect"></select>
+      <select id="categorySelect">
+        <option value="all">전체 카테고리</option>
+        <option value="recommended">추천</option>
+        <option value="natural">내추럴</option>
+        <option value="bright">화사</option>
+        <option value="warm">웜톤</option>
+        <option value="cool">쿨톤</option>
+        <option value="film">필름</option>
+        <option value="monochrome">모노</option>
+      </select>
+    </div>
+    <div class="header-actions">
+      <label class="btn">
+        <span>📷 테스트 이미지</span>
+        <input type="file" id="imageInput" accept="image/*" class="hidden">
+      </label>
+      <label class="btn">
+        <span>🧊 .cube LUT 가져오기</span>
+        <input type="file" id="lutInput" accept=".cube" class="hidden">
+      </label>
+      <button id="btnDuplicate">복제</button>
+      <button id="btnReset">초기화</button>
+      <button id="btnCopyCode" class="primary">설정 코드 복사</button>
+      <button id="btnExportJson">JSON 내보내기</button>
+      <label class="btn">
+        <span>JSON 가져오기</span>
+        <input type="file" id="jsonInput" accept=".json" class="hidden">
+      </label>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- Viewport Panel -->
+    <div class="viewport-panel">
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="mainCanvas"></canvas>
+        <div class="split-divider" id="splitDivider" style="left: 50%;">
+          <div class="split-handle">⬌</div>
+        </div>
+      </div>
+      <div class="viewport-bar">
+        <span>분할 비교: <b id="splitLabel">50%</b></span>
+        <span>처리 시간: <b id="perfLabel">0.0ms</b></span>
+        <span>해상도: <b id="dimLabel">640 x 480</b></span>
+        <span id="validationStatus" style="color: var(--success);">✔ 정상 프리셋</span>
+      </div>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+      <!-- Intensity -->
+      <div class="panel-section">
+        <div class="panel-title">필터 강도 (Intensity)</div>
+        <div class="control-row">
+          <span class="control-label">강도 (0-100)</span>
+          <input type="range" id="param_intensity" class="control-slider" min="0" max="100" value="100">
+          <span class="control-value" id="val_intensity">100%</span>
+        </div>
+      </div>
+
+      <!-- Tone & Exposure -->
+      <div class="panel-section">
+        <div class="panel-title">기본 톤 및 노출</div>
+        <div class="control-row">
+          <span class="control-label">노출 (Exposure)</span>
+          <input type="range" id="param_exposure" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_exposure">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">밝기 (Brightness)</span>
+          <input type="range" id="param_brightness" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_brightness">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">대비 (Contrast)</span>
+          <input type="range" id="param_contrast" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_contrast">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">하이라이트</span>
+          <input type="range" id="param_highlights" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_highlights">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">섀도우</span>
+          <input type="range" id="param_shadows" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_shadows">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">화이트</span>
+          <input type="range" id="param_whites" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_whites">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">블랙</span>
+          <input type="range" id="param_blacks" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_blacks">0.00</span>
+        </div>
+      </div>
+
+      <!-- Color Balance -->
+      <div class="panel-section">
+        <div class="panel-title">색상 및 밸런스</div>
+        <div class="control-row">
+          <span class="control-label">색온도 (Temp)</span>
+          <input type="range" id="param_temperature" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_temperature">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">색조 (Tint)</span>
+          <input type="range" id="param_tint" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_tint">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">채도 (Saturate)</span>
+          <input type="range" id="param_saturation" class="control-slider" min="-100" max="100" value="0">
+          <span class="control-value" id="val_saturation">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Red 배수</span>
+          <input type="range" id="param_rMult" class="control-slider" min="50" max="150" value="100">
+          <span class="control-value" id="val_rMult">1.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Green 배수</span>
+          <input type="range" id="param_gMult" class="control-slider" min="50" max="150" value="100">
+          <span class="control-value" id="val_gMult">1.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">Blue 배수</span>
+          <input type="range" id="param_bMult" class="control-slider" min="50" max="150" value="100">
+          <span class="control-value" id="val_bMult">1.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">흑백 (Grayscale)</span>
+          <input type="range" id="param_grayscale" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_grayscale">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">세피아 (Sepia)</span>
+          <input type="range" id="param_sepia" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_sepia">0.00</span>
+        </div>
+      </div>
+
+      <!-- Texture & Spatial -->
+      <div class="panel-section">
+        <div class="panel-title">질감 및 공간 효과</div>
+        <div class="control-row">
+          <span class="control-label">페이드 (Fade)</span>
+          <input type="range" id="param_fade" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_fade">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">소프트 (Softness)</span>
+          <input type="range" id="param_softness" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_softness">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">샤픈 (Sharpen)</span>
+          <input type="range" id="param_sharpen" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_sharpen">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">필름 그레인</span>
+          <input type="range" id="param_grain" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_grain">0.00</span>
+        </div>
+        <div class="control-row">
+          <span class="control-label">비네팅 (Vignette)</span>
+          <input type="range" id="param_vignette" class="control-slider" min="0" max="100" value="0">
+          <span class="control-value" id="val_vignette">0.00</span>
+        </div>
+      </div>
+
+      <!-- Validation & Log -->
+      <div class="panel-section">
+        <div class="panel-title">유효성 검사 보고서</div>
+        <div class="report-box" id="reportBox">모든 파라미터가 유효 범위 내에 있습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Filter Engine Scripts Locally -->
+  <script src="/filters/curve-engine.js"></script>
+  <script src="/filters/lut-parser.js"></script>
+  <script src="/filters/filter-definitions.js"></script>
+  <script src="/filters/pixel-engine.js"></script>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // State
+      let currentPreset = null;
+      let activeParams = {};
+      let originalImageData = null;
+      let splitPercent = 50;
+      let isDraggingSplit = false;
+      let customLUT = null;
+
+      const mainCanvas = document.getElementById('mainCanvas');
+      const ctx = mainCanvas.getContext('2d');
+      const splitDivider = document.getElementById('splitDivider');
+      const presetSelect = document.getElementById('presetSelect');
+      const categorySelect = document.getElementById('categorySelect');
+
+      // Populate presets
+      function initPresetList() {
+        presetSelect.innerHTML = '';
+        const cat = categorySelect.value;
+        const presets = window.FilterDefinitions ? window.FilterDefinitions.FILTER_PRESETS : [];
+        presets.forEach(p => {
+          if (cat === 'all' || p.category === cat) {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `[${p.category}] ${p.name} (${p.id})`;
+            presetSelect.appendChild(opt);
+          }
+        });
+        if (presets.length > 0) {
+          selectPreset(presets[0].id);
+        }
+      }
+
+      function selectPreset(id) {
+        const p = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(id) : null;
+        if (!p) return;
+        currentPreset = JSON.parse(JSON.stringify(p));
+        activeParams = JSON.parse(JSON.stringify(p));
+        document.getElementById('param_intensity').value = 100;
+        document.getElementById('val_intensity').textContent = '100%';
+        syncUIFromParams();
+        render();
+      }
+
+      function syncUIFromParams() {
+        const p = activeParams || {};
+        const setVal = (id, val, mult = 100) => {
+          const el = document.getElementById('param_' + id);
+          const lbl = document.getElementById('val_' + id);
+          if (el) el.value = Math.round((val || 0) * mult);
+          if (lbl) lbl.textContent = Number(val || 0).toFixed(2);
+        };
+
+        setVal('exposure', p.exposure);
+        setVal('brightness', p.brightness);
+        setVal('contrast', p.contrast);
+        setVal('highlights', p.highlights);
+        setVal('shadows', p.shadows);
+        setVal('whites', p.whites);
+        setVal('blacks', p.blacks);
+        setVal('temperature', p.temperature);
+        setVal('tint', p.tint);
+        setVal('saturation', p.saturation);
+        setVal('grayscale', p.grayscale);
+        setVal('sepia', p.sepia);
+        setVal('fade', p.fade);
+        setVal('softness', p.softness);
+        setVal('sharpen', p.sharpen);
+        setVal('grain', p.grain);
+        setVal('vignette', p.vignette);
+
+        const r = (p.rgbMultipliers && p.rgbMultipliers[0]) || 1.0;
+        const g = (p.rgbMultipliers && p.rgbMultipliers[1]) || 1.0;
+        const b = (p.rgbMultipliers && p.rgbMultipliers[2]) || 1.0;
+        document.getElementById('param_rMult').value = Math.round(r * 100);
+        document.getElementById('val_rMult').textContent = r.toFixed(2);
+        document.getElementById('param_gMult').value = Math.round(g * 100);
+        document.getElementById('val_gMult').textContent = g.toFixed(2);
+        document.getElementById('param_bMult').value = Math.round(b * 100);
+        document.getElementById('val_bMult').textContent = b.toFixed(2);
+      }
+
+      function syncParamsFromUI() {
+        const getVal = (id, mult = 100) => {
+          const el = document.getElementById('param_' + id);
+          return el ? Number(el.value) / mult : 0;
+        };
+
+        activeParams.exposure = getVal('exposure');
+        activeParams.brightness = getVal('brightness');
+        activeParams.contrast = getVal('contrast');
+        activeParams.highlights = getVal('highlights');
+        activeParams.shadows = getVal('shadows');
+        activeParams.whites = getVal('whites');
+        activeParams.blacks = getVal('blacks');
+        activeParams.temperature = getVal('temperature');
+        activeParams.tint = getVal('tint');
+        activeParams.saturation = getVal('saturation');
+        activeParams.grayscale = getVal('grayscale');
+        activeParams.sepia = getVal('sepia');
+        activeParams.fade = getVal('fade');
+        activeParams.softness = getVal('softness');
+        activeParams.sharpen = getVal('sharpen');
+        activeParams.grain = getVal('grain');
+        activeParams.vignette = getVal('vignette');
+        activeParams.rgbMultipliers = [
+          getVal('rMult'),
+          getVal('gMult'),
+          getVal('bMult')
+        ];
+      }
+
+      // Generate default test pattern if no image loaded
+      function generateTestPattern(w = 640, h = 480) {
+        mainCanvas.width = w;
+        mainCanvas.height = h;
+        const imgData = ctx.createImageData(w, h);
+        const data = imgData.data;
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            // Warm skin-tone / portrait gradient test pattern
+            const gradX = x / w;
+            const gradY = y / h;
+            data[idx] = Math.round(210 + 40 * gradX - 30 * gradY);     // R
+            data[idx + 1] = Math.round(160 + 20 * gradX - 40 * gradY); // G
+            data[idx + 2] = Math.round(140 - 20 * gradX + 10 * gradY); // B
+            data[idx + 3] = 255;
+          }
+        }
+        originalImageData = imgData;
+        document.getElementById('dimLabel').textContent = `${w} x ${h}`;
+      }
+
+      function render() {
+        if (!originalImageData) return;
+        const t0 = performance.now();
+        const w = originalImageData.width;
+        const h = originalImageData.height;
+
+        // Clone original for processing
+        const copyData = new Uint8ClampedArray(originalImageData.data);
+        const workData = { width: w, height: h, data: copyData };
+
+        const intensity = Number(document.getElementById('param_intensity').value) / 100;
+        const interpolated = window.FilterDefinitions.interpolateParameters(activeParams, intensity);
+        if (customLUT) interpolated.lut = customLUT;
+
+        window.PixelEngine.processPixelPipeline(workData, interpolated, {
+          intensity,
+          grainSeed: 'dev_lab_seed'
+        });
+
+        const t1 = performance.now();
+        document.getElementById('perfLabel').textContent = `${(t1 - t0).toFixed(1)}ms`;
+
+        // Draw with split view
+        const splitX = Math.round((splitPercent / 100) * w);
+        const finalData = ctx.createImageData(w, h);
+        const out = finalData.data;
+        const orig = originalImageData.data;
+        const filt = workData.data;
+
+        for (let y = 0; y < h; y++) {
+          const row = y * w;
+          for (let x = 0; x < w; x++) {
+            const idx = (row + x) * 4;
+            const src = (x < splitX) ? orig : filt;
+            out[idx] = src[idx];
+            out[idx + 1] = src[idx + 1];
+            out[idx + 2] = src[idx + 2];
+            out[idx + 3] = 255;
+          }
+        }
+
+        ctx.putImageData(finalData, 0, 0);
+      }
+
+      // Sliders event listeners
+      document.querySelectorAll('.control-slider').forEach(slider => {
+        slider.addEventListener('input', (e) => {
+          const id = e.target.id.replace('param_', '');
+          const lbl = document.getElementById('val_' + id);
+          if (lbl) {
+            const mult = (id === 'intensity') ? 1 : 100;
+            lbl.textContent = (id === 'intensity') ? `${e.target.value}%` : (Number(e.target.value) / mult).toFixed(2);
+          }
+          syncParamsFromUI();
+          render();
+        });
+      });
+
+      // Split bar drag
+      const container = document.getElementById('canvasContainer');
+      splitDivider.addEventListener('mousedown', () => { isDraggingSplit = true; });
+      window.addEventListener('mouseup', () => { isDraggingSplit = false; });
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingSplit) return;
+        const rect = mainCanvas.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        let pct = ((e.clientX - rect.left) / rect.width) * 100;
+        pct = Math.max(0, Math.min(100, pct));
+        splitPercent = pct;
+        splitDivider.style.left = `${pct}%`;
+        document.getElementById('splitLabel').textContent = `${Math.round(pct)}%`;
+        render();
+      });
+
+      presetSelect.addEventListener('change', (e) => selectPreset(e.target.value));
+      categorySelect.addEventListener('change', () => initPresetList());
+
+      // Image loader (Zero upload, in-browser only)
+      document.getElementById('imageInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const maxEdge = 800;
+          let w = img.naturalWidth;
+          let h = img.naturalHeight;
+          if (w > maxEdge || h > maxEdge) {
+            const ratio = Math.min(maxEdge / w, maxEdge / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          mainCanvas.width = w;
+          mainCanvas.height = h;
+          ctx.drawImage(img, 0, 0, w, h);
+          originalImageData = ctx.getImageData(0, 0, w, h);
+          document.getElementById('dimLabel').textContent = `${w} x ${h}`;
+          render();
+        };
+        img.src = url;
+      });
+
+      // Local .cube LUT import (Zero upload)
+      document.getElementById('lutInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            customLUT = window.LUTParser.parseCubeLUT(reader.result);
+            document.getElementById('reportBox').textContent = `3D LUT 성공적으로 로드됨: ${customLUT.title} (size ${customLUT.size})`;
+            render();
+          } catch (err) {
+            document.getElementById('reportBox').textContent = `LUT 오류: ${err.message}`;
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // Duplicate
+      document.getElementById('btnDuplicate').addEventListener('click', () => {
+        const name = prompt('새 프리셋 이름을 입력하세요:', (activeParams.name || '새 프리셋') + ' 복사본');
+        if (!name) return;
+        const id = 'custom-' + Date.now().toString(36);
+        activeParams.id = id;
+        activeParams.name = name;
+        document.getElementById('reportBox').textContent = `프리셋 복제됨: ${name} (${id})`;
+      });
+
+      // Reset
+      document.getElementById('btnReset').addEventListener('click', () => {
+        if (currentPreset) selectPreset(currentPreset.id);
+      });
+
+      // Copy Code
+      document.getElementById('btnCopyCode').addEventListener('click', () => {
+        const code = JSON.stringify(activeParams, null, 2);
+        navigator.clipboard.writeText(code).then(() => {
+          alert('프리셋 설정 JSON 코드가 클립보드에 복사되었습니다.');
+        });
+      });
+
+      // Export JSON
+      document.getElementById('btnExportJson').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(activeParams, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${activeParams.id || 'filter-preset'}.json`;
+        a.click();
+      });
+
+      // Import JSON
+      document.getElementById('jsonInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const imported = JSON.parse(reader.result);
+            activeParams = imported;
+            syncUIFromParams();
+            render();
+            document.getElementById('reportBox').textContent = `JSON 프리셋 로드 성공: ${imported.name || imported.id}`;
+          } catch (err) {
+            document.getElementById('reportBox').textContent = `JSON 오류: ${err.message}`;
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // Initialize
+      generateTestPattern();
+      initPresetList();
+    })();
+  </script>
+</body>
+</html>
