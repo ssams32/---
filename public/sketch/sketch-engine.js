@@ -30,16 +30,21 @@
    * @param {object} [options] - Calibration / operator overrides
    * @returns {object} { pixels: Uint8ClampedArray, confidenceInfo: object, groupBounds: object, transform: object }
    */
+  function normalizeParam(val, defaultVal) {
+    if (typeof val !== 'number' || isNaN(val)) return defaultVal;
+    return val > 1.0 ? (val / 100.0) : Math.max(0.0, Math.min(1.0, val));
+  }
+
   function process(pixels, width, height, sketchState, options) {
     sketchState = sketchState || {};
     options = options || {};
 
     var preset = SketchDefinitions.getSketchPreset(sketchState.effectId || 'group-color-sketch');
-    var intensity = (typeof sketchState.intensity === 'number') ? (sketchState.intensity / 100.0) : 1.0;
-    var lineStrength = (typeof sketchState.lineStrength === 'number') ? (sketchState.lineStrength / 100.0) : preset.lineStrength;
-    var colorStrength = (typeof sketchState.colorStrength === 'number') ? (sketchState.colorStrength / 100.0) : preset.colorStrength;
-    var paperStrength = (typeof sketchState.paperStrength === 'number') ? (sketchState.paperStrength / 100.0) : preset.paperStrength;
-    var washStrength = (typeof sketchState.backgroundWashStrength === 'number') ? (sketchState.backgroundWashStrength / 100.0) : preset.backgroundWashStrength;
+    var intensity = normalizeParam(sketchState.intensity, 1.0);
+    var lineStrength = normalizeParam(sketchState.lineStrength, preset.lineStrength);
+    var colorStrength = normalizeParam(sketchState.colorStrength, preset.colorStrength);
+    var paperStrength = normalizeParam(sketchState.paperStrength, preset.paperStrength);
+    var washStrength = normalizeParam(sketchState.backgroundWashStrength, preset.backgroundWashStrength);
 
     // Working copy of source pixels
     var workPixels = new Uint8ClampedArray(pixels);
@@ -111,6 +116,7 @@
         inkColor: preset.inkColor,
         lineStrength: lineStrength,
         colorStrength: colorStrength,
+        paperStrength: paperStrength,
         paperTint: preset.paperTint,
         seed: options.seed || 'group-sketch-stable-seed'
       }

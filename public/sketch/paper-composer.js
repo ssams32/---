@@ -32,21 +32,23 @@
   /**
    * Generate procedural deterministic paper texture
    */
-  function generatePaperTexture(width, height, paperTint, seed) {
+  function generatePaperTexture(width, height, paperTint, seed, paperStrength) {
     var rng = new PRNG(seed || 'paper-texture-seed');
     var length = width * height;
     var paper = new Uint8ClampedArray(length * 4);
     var baseR = paperTint[0] || 247;
     var baseG = paperTint[1] || 242;
     var baseB = paperTint[2] || 230;
+    var pStrength = (typeof paperStrength === 'number') ? paperStrength : 0.45;
+    var grainScale = 8.0 + (pStrength * 14.0);
 
     for (var i = 0; i < length; i++) {
       var p = i * 4;
-      // Gentle grain variation (-8 to +8)
-      var n = (rng.next() - 0.5) * 14;
+      // Gentle grain variation modulated by paperStrength
+      var n = (rng.next() - 0.5) * grainScale;
       // Rare fibrous fleck
       if (rng.next() < 0.003) {
-        n -= 22;
+        n -= (16 + pStrength * 12);
       }
 
       paper[p] = clamp(Math.round(baseR + n), 0, 255);
@@ -117,10 +119,11 @@
     var ink = options.inkColor || [54, 49, 48];
     var lineStrength = (typeof options.lineStrength === 'number') ? options.lineStrength : 0.85;
     var colorStrength = (typeof options.colorStrength === 'number') ? options.colorStrength : 0.80;
+    var paperStrength = (typeof options.paperStrength === 'number') ? options.paperStrength : 0.45;
     var paperTint = options.paperTint || [247, 242, 230];
     var seed = options.seed || 'sketch-seed';
 
-    var paper = generatePaperTexture(width, height, paperTint, seed);
+    var paper = generatePaperTexture(width, height, paperTint, seed, paperStrength);
     var output = new Uint8ClampedArray(width * height * 4);
     var length = width * height;
 

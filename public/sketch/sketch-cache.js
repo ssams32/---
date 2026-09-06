@@ -26,11 +26,16 @@
     });
   }
 
-  SketchCache.prototype.createKey = function(photoId, effectId, intensity, lineStrength, colorStrength, width, height) {
-    var intR = Math.round((intensity || 1.0) * 100);
-    var lineR = Math.round((lineStrength || 0.85) * 100);
-    var colR = Math.round((colorStrength || 0.80) * 100);
-    return photoId + ':' + effectId + ':' + intR + '_' + lineR + '_' + colR + ':' + width + 'x' + height;
+  SketchCache.prototype.createKey = function(photoId, effectId, intensity, lineStrength, colorStrength, width, height, paperStrength) {
+    var to100 = function(v, d) {
+      var n = (typeof v === 'number' && !isNaN(v)) ? v : d;
+      return Math.round(n > 1.0 ? n : (n * 100));
+    };
+    var intR = to100(intensity, 100);
+    var lineR = to100(lineStrength, 85);
+    var colR = to100(colorStrength, 80);
+    var papR = to100(paperStrength, 45);
+    return photoId + ':' + effectId + ':' + intR + '_' + lineR + '_' + colR + '_' + papR + ':' + width + 'x' + height;
   };
 
   SketchCache.prototype.get = function(key) {

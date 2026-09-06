@@ -462,3 +462,33 @@ test('40. no forbidden AI dependency: verifies absence of ML/neural/face librari
     }
   }
 });
+
+test('41. parameter normalization regression prevention: float 1.0 and percentage 100 produce identical full effect', () => {
+  const width = 20, height = 20;
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < pixels.length; i += 4) {
+    pixels[i] = 120; pixels[i + 1] = 160; pixels[i + 2] = 200; pixels[i + 3] = 255;
+  }
+
+  // Pass 0..1 floats
+  const resFloat = SketchEngine.process(new Uint8ClampedArray(pixels), width, height, {
+    intensity: 1.0,
+    lineStrength: 0.85,
+    colorStrength: 0.80,
+    paperStrength: 0.45,
+    backgroundWashStrength: 0.25
+  });
+
+  // Pass 0..100 numbers
+  const resHundred = SketchEngine.process(new Uint8ClampedArray(pixels), width, height, {
+    intensity: 100,
+    lineStrength: 85,
+    colorStrength: 80,
+    paperStrength: 45,
+    backgroundWashStrength: 25
+  });
+
+  // Both should yield identical pixels without double-division
+  assert.deepEqual(resFloat.pixels, resHundred.pixels, 'Float and 0-100 parameters must normalize identically');
+});
+

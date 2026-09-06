@@ -72,7 +72,8 @@
       sketchState.lineStrength,
       sketchState.colorStrength,
       width,
-      height
+      height,
+      sketchState.paperStrength
     ) : null;
 
     if (c && key) {
