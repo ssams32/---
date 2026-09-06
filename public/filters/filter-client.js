@@ -252,7 +252,7 @@
         }
       }
 
-      // Extract ImageData from source
+      // Extract ImageData from source with zero-distortion aspect preservation
       let srcImageData = null;
       if (source instanceof ImageData) {
         srcImageData = source;
@@ -261,7 +261,15 @@
         offCanvas.width = width;
         offCanvas.height = height;
         const offCtx = offCanvas.getContext('2d');
-        offCtx.drawImage(source, 0, 0, width, height);
+
+        const sW = source.naturalWidth || source.videoWidth || source.width || width;
+        const sH = source.naturalHeight || source.videoHeight || source.height || height;
+        const scale = Math.max(width / sW, height / sH);
+        const cropW = width / scale;
+        const cropH = height / scale;
+        const cropX = (sW - cropW) / 2;
+        const cropY = (sH - cropH) / 2;
+        offCtx.drawImage(source, cropX, cropY, cropW, cropH, 0, 0, width, height);
         srcImageData = offCtx.getImageData(0, 0, width, height);
       }
 

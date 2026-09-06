@@ -52,6 +52,7 @@
     activeCategory: CFG.stickers?.categories?.[0]?.id || 'icheon_20th',
     currentThemeId: 'classic_light',
     currentFilterId: 'original',
+    editorMode: 'zoomed',
     csrf: null,
     runId: 0,
     idleTimer: null,
@@ -1347,10 +1348,137 @@
   }
 
   function renderDecorationEditor() {
-    renderStripPreview();
+    state.editorMode = 'zoomed'; // Default to auto-zoomed single photo mode
+    if (!state.activePhotoId || !state.selected.includes(state.activePhotoId)) {
+      state.activePhotoId = state.selected[0];
+    }
+    state.activeStickerId = null;
+
+    renderEditorWorkspace();
     renderThemeSelector();
     renderStickerCategories();
     renderStickerItems();
+  }
+
+  function renderEditorWorkspace() {
+    renderPhotoNavRail();
+    updateEditorModeUI();
+    if (state.editorMode === 'zoomed') {
+      renderZoomedPhotoCard();
+    } else {
+      renderStripPreview();
+    }
+  }
+
+  function updateEditorModeUI() {
+    const isZoomed = state.editorMode === 'zoomed';
+    const zoomedContainer = $('#zoomedEditorContainer');
+    const stripContainer = $('#stripPreview');
+    const label = $('#editorModeLabel');
+    const icon = $('#editorModeIcon');
+
+    if (zoomedContainer) zoomedContainer.style.display = isZoomed ? 'flex' : 'none';
+    if (stripContainer) stripContainer.style.display = isZoomed ? 'none' : 'flex';
+
+    if (label) label.textContent = isZoomed ? '전체 네컷 보기' : '한 장 크게 꾸미기';
+    if (icon) icon.textContent = isZoomed ? '🔍' : '🖼️';
+  }
+
+  function toggleEditorMode() {
+    state.editorMode = state.editorMode === 'zoomed' ? 'strip' : 'zoomed';
+    updateEditorModeUI();
+    if (state.editorMode === 'zoomed') {
+      renderZoomedPhotoCard();
+    } else {
+      renderStripPreview();
+    }
+  }
+
+  function renderPhotoNavRail() {
+    const rail = $('#photoNavRail');
+    if (!rail) return;
+    rail.replaceChildren();
+
+    state.selected.forEach((photoId, idx) => {
+      const isActive = photoId === state.activePhotoId;
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = `photo-tab-chip ${isActive ? 'active' : ''}`;
+      chip.setAttribute('role', 'tab');
+      chip.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      chip.setAttribute('aria-label', `${idx + 1}번 사진 편집하기`);
+
+      const count = (ensureStickerList(photoId) || []).length;
+      chip.innerHTML = `
+        <span>${idx + 1}번 사진</span>
+        ${count > 0 ? `<span class="tab-sticker-badge">${count}</span>` : ''}
+      `;
+
+      chip.addEventListener('click', () => {
+        selectActivePhoto(photoId);
+      });
+      rail.append(chip);
+    });
+
+    const counter = $('#zoomedPhotoCounter');
+    if (counter) {
+      const currIdx = state.selected.indexOf(state.activePhotoId);
+      counter.textContent = `${currIdx >= 0 ? currIdx + 1 : 1} / ${state.selected.length}`;
+    }
+  }
+
+  async function renderZoomedPhotoCard() {
+    const card = $('#zoomedPhotoCard');
+    const canvas = $('#zoomedCanvas');
+    if (!card || !canvas) return;
+
+    const photoId = state.activePhotoId;
+    if (!photoId) return;
+
+    card.dataset.photoId = photoId;
+    const shot = state.shots.find((s) => s.id === photoId);
+    if (!shot) return;
+
+    const tag = $('#zoomedPhotoTag');
+    const idx = state.selected.indexOf(photoId);
+    if (tag) tag.textContent = `${idx + 1}번 사진 (크게 꾸미는 중 ✨)`;
+
+    // Crisp 4:3 high-res canvas (640x480)
+    canvas.width = 640;
+    canvas.height = 480;
+
+    const fs = getPhotoFilter(photoId);
+    const isSketch = isSketchFilter(fs.filterId);
+
+    try {
+      const imgEl = await loadHtmlImage(shot.url);
+      if (isSketch && window.SketchClient) {
+        const ss = getPhotoSketchState(photoId, fs.filterId);
+        await window.SketchClient.renderPreviewToCanvas(canvas, imgEl, photoId, ss, {
+          backdropRgb: window.SketchDefinitions ? window.SketchDefinitions.DEFAULT_BACKDROP_RGB : [143, 207, 227],
+          protectBlueStrength: ss.protectBlueStrength || 0.85,
+          forceFullFrame: ss.forceFullFrame || false
+        });
+      } else if (window.filterClient) {
+        const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
+        await window.filterClient.renderPreviewToCanvas(canvas, imgEl, photoId, preset, fs.intensity / 100, fs.adjustments);
+      } else {
+        const ctx = canvas.getContext('2d');
+        drawCover(ctx, imgEl, 0, 0, canvas.width, canvas.height);
+      }
+    } catch (e) {
+      console.warn('Zoomed canvas render error:', e);
+    }
+
+    renderPhotoStickers(photoId);
+    updateActivePhotoBanner();
+  }
+
+  function navigatePhoto(direction) {
+    const currIdx = state.selected.indexOf(state.activePhotoId);
+    if (currIdx < 0) return;
+    const nextIdx = (currIdx + direction + state.selected.length) % state.selected.length;
+    selectActivePhoto(state.selected[nextIdx]);
   }
 
   function renderThemeSelector() {
@@ -1437,6 +1565,10 @@
       cell.addEventListener('pointerdown', (e) => {
         if (e.target === cell || e.target === slotCanvas) {
           selectActivePhoto(photoId);
+          // Tap photo to auto-zoom into large editor
+          state.editorMode = 'zoomed';
+          updateEditorModeUI();
+          renderZoomedPhotoCard();
         }
       });
       grid.append(cell);
@@ -1457,20 +1589,25 @@
   function selectActivePhoto(photoId) {
     state.activePhotoId = photoId;
     state.activeStickerId = null;
-    $$('.preview-cell').forEach((c) => {
-      const isActive = c.dataset.photoId === photoId;
-      c.classList.toggle('active', isActive);
-      c.classList.toggle('active-photo', isActive);
-      const pill = c.querySelector('.active-slot-pill');
-      if (isActive && !pill) {
-        const newPill = document.createElement('div');
-        newPill.className = 'active-slot-pill';
-        newPill.textContent = '꾸미는 중';
-        c.append(newPill);
-      } else if (!isActive && pill) {
-        pill.remove();
-      }
-    });
+    renderPhotoNavRail();
+    if (state.editorMode === 'zoomed') {
+      renderZoomedPhotoCard();
+    } else {
+      $$('.preview-cell').forEach((c) => {
+        const isActive = c.dataset.photoId === photoId;
+        c.classList.toggle('active', isActive);
+        c.classList.toggle('active-photo', isActive);
+        const pill = c.querySelector('.active-slot-pill');
+        if (isActive && !pill) {
+          const newPill = document.createElement('div');
+          newPill.className = 'active-slot-pill';
+          newPill.textContent = '꾸미는 중';
+          c.append(newPill);
+        } else if (!isActive && pill) {
+          pill.remove();
+        }
+      });
+    }
     $$('.sticker-node').forEach((n) => n.classList.remove('selected'));
     updateActivePhotoBanner();
   }
@@ -1547,6 +1684,7 @@
     list.push(newSticker);
     renderPhotoStickers(state.activePhotoId);
     selectSticker(state.activePhotoId, newSticker.id);
+    renderPhotoNavRail();
   }
 
   function selectSticker(photoId, stickerId) {
@@ -1560,39 +1698,42 @@
   }
 
   function renderPhotoStickers(photoId) {
-    const cell = $(`.preview-cell[data-photo-id="${photoId}"]`);
-    if (!cell) return;
-    cell.querySelectorAll('.sticker-node').forEach((n) => n.remove());
+    const cells = $$(`.preview-cell[data-photo-id="${photoId}"]`);
+    if (!cells.length) return;
 
-    ensureStickerList(photoId).forEach((model) => {
-      const node = document.createElement('div');
-      node.className = `sticker-node ${state.activeStickerId === model.id ? 'selected' : ''}`;
-      node.dataset.photoId = photoId;
-      node.dataset.stickerId = model.id;
+    cells.forEach((cell) => {
+      cell.querySelectorAll('.sticker-node').forEach((n) => n.remove());
 
-      let contentHtml = '';
-      if (model.type === 'image') {
-        contentHtml = `<img class="sticker-img-asset" src="${model.value}" alt="${model.label || '스티커'}">`;
-      } else {
-        contentHtml = `<span class="sticker-emoji">${model.value || model.emoji}</span>`;
-      }
+      ensureStickerList(photoId).forEach((model) => {
+        const node = document.createElement('div');
+        node.className = `sticker-node ${state.activeStickerId === model.id ? 'selected' : ''}`;
+        node.dataset.photoId = photoId;
+        node.dataset.stickerId = model.id;
 
-      node.innerHTML = `
-        <button type="button" class="sticker-handle sticker-delete-handle" aria-label="스티커 삭제">✕</button>
-        ${contentHtml}
-        <button type="button" class="sticker-handle sticker-resize" aria-label="크기 조절">⤡</button>
-        <button type="button" class="sticker-handle sticker-rotate" aria-label="회전">↻</button>
-      `;
-      applyStickerTransform(node, model);
-      bindStickerEvents(node, model);
-      cell.append(node);
+        let contentHtml = '';
+        if (model.type === 'image') {
+          contentHtml = `<img class="sticker-img-asset" src="${model.value}" alt="${model.label || '스티커'}">`;
+        } else {
+          contentHtml = `<span class="sticker-emoji">${model.value || model.emoji}</span>`;
+        }
+
+        node.innerHTML = `
+          <button type="button" class="sticker-handle sticker-delete-handle" aria-label="스티커 삭제">✕</button>
+          ${contentHtml}
+          <button type="button" class="sticker-handle sticker-resize" aria-label="크기 조절">⤡</button>
+          <button type="button" class="sticker-handle sticker-rotate" aria-label="회전">↻</button>
+        `;
+        applyStickerTransform(node, model);
+        bindStickerEvents(node, model);
+        cell.append(node);
+      });
     });
   }
 
   function applyStickerTransform(node, model) {
     const cell = node.parentElement;
-    const baseW = cell ? (cell.clientWidth || 180) : 180;
-    const baseH = cell ? (cell.clientHeight || 135) : 135;
+    const baseW = cell ? (cell.clientWidth || 320) : 320;
+    const baseH = cell ? (cell.clientHeight || 240) : 240;
     const base = Math.max(150, Math.min(baseW, baseH));
     const size = Math.max(36, Math.round(base * (model.scale || 0.35)));
 
@@ -1708,6 +1849,7 @@
       const idx = list.indexOf(model);
       if (idx >= 0) list.splice(idx, 1);
       state.activeStickerId = null;
+      renderPhotoNavRail();
     }
 
     renderPhotoStickers(state.activePhotoId);
@@ -1728,10 +1870,12 @@
   }
 
   function drawCover(ctx, img, x, y, w, h) {
-    const ratio = Math.max(w / img.width, h / img.height);
+    const imgW = img.naturalWidth || img.videoWidth || img.width || w;
+    const imgH = img.naturalHeight || img.videoHeight || img.height || h;
+    const ratio = Math.max(w / imgW, h / imgH);
     const sw = w / ratio;
     const sh = h / ratio;
-    ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, w, h);
+    ctx.drawImage(img, (imgW - sw) / 2, (imgH - sh) / 2, sw, sh, x, y, w, h);
   }
 
   async function composeFinalCanvasBlob() {
@@ -2109,6 +2253,13 @@
       capCanvas.width = 1;
       capCanvas.height = 1;
     }
+    const zoomedCanvas = $('#zoomedCanvas');
+    if (zoomedCanvas) {
+      zoomedCanvas.getContext('2d')?.clearRect(0, 0, zoomedCanvas.width, zoomedCanvas.height);
+      zoomedCanvas.width = 1;
+      zoomedCanvas.height = 1;
+    }
+    state.editorMode = 'zoomed';
 
     show('start');
   }
@@ -2285,11 +2436,20 @@
     show('edit');
   });
 
-  // Screen 6: Editor
+  // Screen 5: Editor (Auto-Zoomed & Strip Modes)
   $('#smaller')?.addEventListener('click', () => modifyActiveSticker('smaller'));
   $('#bigger')?.addEventListener('click', () => modifyActiveSticker('bigger'));
   $('#rotate')?.addEventListener('click', () => modifyActiveSticker('rotate'));
   $('#deleteSticker')?.addEventListener('click', () => modifyActiveSticker('delete'));
+  $('#editorModeToggleBtn')?.addEventListener('click', toggleEditorMode);
+  $('#prevPhotoBtn')?.addEventListener('click', () => navigatePhoto(-1));
+  $('#nextPhotoBtn')?.addEventListener('click', () => navigatePhoto(1));
+  $('#zoomedPhotoCard')?.addEventListener('pointerdown', (e) => {
+    if (e.target === $('#zoomedPhotoCard') || e.target === $('#zoomedCanvas')) {
+      state.activeStickerId = null;
+      $$('.sticker-node').forEach((n) => n.classList.remove('selected'));
+    }
+  });
   $('#backSelectBtn')?.addEventListener('click', () => {
     initFilterStage();
     show('filter');
@@ -2374,14 +2534,14 @@
   }
   $('#fullscreenBtn')?.addEventListener('click', toggleFullScreen);
 
-  // Camera Ratio Switcher (3:4 Portrait -> Full Screen -> 4:3 Landscape)
-  const ratioOrder = ['portrait', 'full', 'landscape'];
+  // Camera Ratio Switcher (4:3 Landscape -> Full Screen -> 3:4 Portrait)
+  const ratioOrder = ['landscape', 'full', 'portrait'];
   const ratioConfig = {
-    portrait: { label: '3:4 인물 (대형)', icon: '📐', notice: '📐 3:4 인물 모드 (높이 85% 대형 뷰)' },
+    landscape: { label: '4:3 스튜디오', icon: '📷', notice: '📷 4:3 스튜디오 모드 (황금비율 와이드)' },
     full: { label: '화면 가득 채움', icon: '🖥️', notice: '🖥️ 화면 가득 채움 모드 (풀스크린 뷰)' },
-    landscape: { label: '4:3 스튜디오', icon: '📷', notice: '📷 4:3 스튜디오 모드 (와이드 뷰)' }
+    portrait: { label: '3:4 인물 (대형)', icon: '📐', notice: '📐 3:4 인물 모드 (세로 대형 뷰)' }
   };
-  state.cameraRatio = 'portrait';
+  state.cameraRatio = 'landscape';
 
   function updateRatioUI() {
     const vf = $('#viewfinderFrame');

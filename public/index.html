@@ -167,7 +167,7 @@
       <div class="camera-stage-layout">
         <!-- Camera Viewfinder Stage -->
         <div class="camera-viewfinder-pane">
-          <div class="camera-viewfinder-frame ratio-portrait" id="viewfinderFrame">
+          <div class="camera-viewfinder-frame ratio-landscape" id="viewfinderFrame">
             <video id="video" autoplay playsinline muted></video>
             <canvas id="captureCanvas" style="display:none;" aria-hidden="true"></canvas>
             <div class="vf-corner top-left"></div>
@@ -176,10 +176,10 @@
             <div class="vf-corner bottom-right"></div>
             <div id="flash"></div>
 
-            <!-- Live Ratio Switcher Badge (3:4 Portrait / Full / 4:3) -->
-            <button type="button" class="btn-ratio-toggle" id="ratioToggleBtn" title="화면 비율 변경 (3:4 인물 / 화면 가득 / 4:3 와이드)" aria-label="카메라 비율 변경">
-              <span id="ratioIcon">📐</span>
-              <span id="ratioLabel">3:4 인물 (대형)</span>
+            <!-- Live Ratio Switcher Badge (4:3 Landscape / Full / 3:4 Portrait) -->
+            <button type="button" class="btn-ratio-toggle" id="ratioToggleBtn" title="화면 비율 변경 (4:3 와이드 / 화면 가득 / 3:4 세로)" aria-label="카메라 비율 변경">
+              <span id="ratioIcon">📷</span>
+              <span id="ratioLabel">4:3 스튜디오</span>
             </button>
 
             <!-- Giant Countdown Circle Floating in Center of Viewfinder -->
@@ -470,9 +470,37 @@
          ============================================================= -->
     <section id="edit" class="screen" aria-labelledby="editorHeading">
       <div class="editor-split-layout">
-        <!-- Left: Large 4-Cut Editor Workspace (44%) -->
+        <!-- Left: Auto-Zoomed Interactive Workspace (46%) -->
         <div class="editor-workspace-pane">
-          <div id="stripPreview" class="stripPreview" aria-label="네 컷 사진 편집 영역"></div>
+          <!-- Top Photo Switcher Rail & View Mode Toggle -->
+          <div class="editor-workspace-topbar">
+            <div class="photo-nav-rail" id="photoNavRail" role="tablist" aria-label="편집할 사진 선택">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+            <button type="button" class="btn-editor-mode-toggle" id="editorModeToggleBtn" title="전체 네컷 보기 / 한 장 크게 꾸미기 전환" aria-label="편집 화면 모드 전환">
+              <span id="editorModeIcon">🔍</span>
+              <span id="editorModeLabel">전체 네컷 보기</span>
+            </button>
+          </div>
+
+          <!-- Main Zoomed Single Photo Stage (Default: Auto-Zoomed Large View) -->
+          <div class="zoomed-editor-container" id="zoomedEditorContainer" aria-label="선택 사진 대형 편집 영역">
+            <div class="zoomed-photo-card preview-cell active active-photo" id="zoomedPhotoCard">
+              <canvas class="slot-photo" id="zoomedCanvas"></canvas>
+              <!-- Sticker nodes rendered here -->
+              <div class="zoomed-photo-tag" id="zoomedPhotoTag">1번 사진 (크게 꾸미는 중 ✨)</div>
+            </div>
+
+            <!-- Quick Prev/Next Photo Floating Controls -->
+            <div class="zoomed-nav-controls">
+              <button type="button" class="btn-zoomed-nav" id="prevPhotoBtn" aria-label="이전 사진">‹ 이전 사진</button>
+              <span class="zoomed-photo-counter" id="zoomedPhotoCounter">1 / 4</span>
+              <button type="button" class="btn-zoomed-nav" id="nextPhotoBtn" aria-label="다음 사진">다음 사진 ›</button>
+            </div>
+          </div>
+
+          <!-- Classic 4-Cut Strip Preview (Shown when user toggles '전체 네컷 보기') -->
+          <div id="stripPreview" class="stripPreview" aria-label="네 컷 사진 전체 미리보기" style="display: none;"></div>
         </div>
 
         <!-- Right: Tool Panel (56%) -->

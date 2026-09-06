@@ -145,8 +145,15 @@
     var w = canvas.width;
     var h = canvas.height;
 
-    // Draw source scaled to canvas dimensions
-    ctx.drawImage(imgEl, 0, 0, w, h);
+    // Draw source scaled to canvas dimensions with zero-distortion aspect preservation
+    var sW = imgEl.naturalWidth || imgEl.videoWidth || imgEl.width || w;
+    var sH = imgEl.naturalHeight || imgEl.videoHeight || imgEl.height || h;
+    var scale = Math.max(w / sW, h / sH);
+    var cropW = w / scale;
+    var cropH = h / scale;
+    var cropX = (sW - cropW) / 2;
+    var cropY = (sH - cropH) / 2;
+    ctx.drawImage(imgEl, cropX, cropY, cropW, cropH, 0, 0, w, h);
     var imgData = ctx.getImageData(0, 0, w, h);
 
     var res = await processSketch(imgData.data, w, h, photoId, sketchState, options);
