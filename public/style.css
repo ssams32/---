@@ -188,6 +188,8 @@ button:focus-visible, a:focus-visible {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .brand-chip-badge {
@@ -473,9 +475,9 @@ main#app {
   margin: auto;
 }
 
-/* Left Column: 42% Identity & Action */
+/* Left Column: 44% Identity & Action */
 .landing-copy-pane {
-  flex: 0 0 42%;
+  flex: 0 0 44%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -485,16 +487,18 @@ main#app {
 .center-chip-tag {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 6px 14px;
+  gap: 8px;
+  padding: 6px 14px 6px 10px;
   background: #FFFFFF;
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-brand-primary);
+  font-size: clamp(12.5px, 1.4vw, 14px);
+  color: var(--color-ink);
   margin-bottom: var(--space-6);
   box-shadow: var(--shadow-soft);
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
 }
 
 .chip-dot-accent {
@@ -502,6 +506,25 @@ main#app {
   height: 8px;
   border-radius: 50%;
   background: var(--color-brand-primary);
+  flex-shrink: 0;
+}
+
+.chip-center-name {
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+
+.chip-badge-pill {
+  background: var(--color-brand-primary-soft);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .landing-headline-text {
@@ -768,10 +791,28 @@ main#app {
   justify-content: space-between;
   align-items: center;
   padding-inline: var(--space-2);
-  font-size: 11px;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.mockup-header-stamp .mhs-title {
+  font-size: 11.5px;
   font-weight: var(--font-weight-extra-bold);
-  color: var(--color-ink-secondary);
-  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
+}
+
+.mockup-header-stamp .mhs-subtitle {
+  font-size: 9.5px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-lilac);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
 }
 
 .mockup-four-grid {
@@ -1622,6 +1663,18 @@ main#app {
   padding: 0 2px 6px 2px;
   border-bottom: 1px dashed rgba(0,0,0,0.1);
   margin-bottom: 8px;
+  white-space: nowrap;
+  gap: 8px;
+}
+.strip-mockup-header .fm-title {
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
+}
+.strip-mockup-header .fm-subtitle {
+  white-space: nowrap;
+  word-break: keep-all;
+  flex-shrink: 0;
 }
 .strip-mockup-footer {
   text-align: center;
