@@ -1395,7 +1395,7 @@
     const icon = $('#editorModeIcon');
 
     if (zoomedContainer) zoomedContainer.style.display = isZoomed ? 'flex' : 'none';
-    if (stripContainer) stripContainer.style.display = isZoomed ? 'flex' : 'none';
+    if (stripContainer) stripContainer.style.display = isZoomed ? 'none' : 'flex';
 
     if (label) label.textContent = isZoomed ? '🖼️ 전체 네컷 보기' : '🔍 1장 크게 꾸미기';
     if (icon) icon.textContent = isZoomed ? '🖼️' : '🔍';
@@ -1499,6 +1499,9 @@
 
     try {
       const imgEl = await loadHtmlImage(shot.url);
+      const ctx = canvas.getContext('2d');
+      drawCover(ctx, imgEl, 0, 0, canvas.width, canvas.height);
+
       if (isSketch && window.SketchClient) {
         const ss = getPhotoSketchState(photoId, fs.filterId);
         await window.SketchClient.renderPreviewToCanvas(canvas, imgEl, photoId, ss, {
@@ -1509,9 +1512,6 @@
       } else if (window.filterClient) {
         const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
         await window.filterClient.renderPreviewToCanvas(canvas, imgEl, photoId, preset, fs.intensity / 100, fs.adjustments);
-      } else {
-        const ctx = canvas.getContext('2d');
-        drawCover(ctx, imgEl, 0, 0, canvas.width, canvas.height);
       }
     } catch (e) {
       console.warn('Zoomed canvas render error:', e);
@@ -1654,37 +1654,17 @@
       cell.dataset.photoId = photoId;
       cell.setAttribute('title', `${index + 1}번 사진 터치하여 스티커 꾸미기`);
 
+      const slotCanvas = document.createElement('canvas');
+      slotCanvas.className = 'slot-photo';
+      slotCanvas.width = 480;
+      slotCanvas.height = 360;
+      cell.append(slotCanvas);
+
       // Slot number badge
       const badge = document.createElement('div');
       badge.className = 'strip-slot-badge';
       badge.textContent = String(index + 1);
       cell.append(badge);
-
-      const slotCanvas = document.createElement('canvas');
-      slotCanvas.className = 'slot-photo';
-      slotCanvas.width = 480;
-      slotCanvas.height = 360;
-      const shot = state.shots.find((s) => s.id === photoId);
-      if (shot) {
-        const fs = getPhotoFilter(photoId);
-        const isSketch = isSketchFilter(fs.filterId);
-        loadHtmlImage(shot.url).then((imgEl) => {
-          if (isSketch && window.SketchClient) {
-            const ss = getPhotoSketchState(photoId, fs.filterId);
-            window.SketchClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, ss, {
-              backdropRgb: window.SketchDefinitions ? window.SketchDefinitions.DEFAULT_BACKDROP_RGB : [143, 207, 227],
-              protectBlueStrength: ss.protectBlueStrength || 0.85,
-              forceFullFrame: ss.forceFullFrame || false
-            });
-          } else if (window.filterClient) {
-            const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
-            window.filterClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, preset, fs.intensity / 100, fs.adjustments);
-          } else {
-            const sctx = slotCanvas.getContext('2d');
-            drawCover(sctx, imgEl, 0, 0, slotCanvas.width, slotCanvas.height);
-          }
-        }).catch(() => {});
-      }
 
       if (isActive) {
         const pill = document.createElement('div');
@@ -1709,7 +1689,28 @@
       });
       cell.append(zoomBtn);
 
-      cell.append(slotCanvas);
+      const shot = state.shots.find((s) => s.id === photoId);
+      if (shot) {
+        const fs = getPhotoFilter(photoId);
+        const isSketch = isSketchFilter(fs.filterId);
+        loadHtmlImage(shot.url).then((imgEl) => {
+          const sctx = slotCanvas.getContext('2d');
+          drawCover(sctx, imgEl, 0, 0, slotCanvas.width, slotCanvas.height);
+          if (isSketch && window.SketchClient) {
+            const ss = getPhotoSketchState(photoId, fs.filterId);
+            window.SketchClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, ss, {
+              backdropRgb: window.SketchDefinitions ? window.SketchDefinitions.DEFAULT_BACKDROP_RGB : [143, 207, 227],
+              protectBlueStrength: ss.protectBlueStrength || 0.85,
+              forceFullFrame: ss.forceFullFrame || false
+            });
+          } else if (window.filterClient) {
+            const preset = window.FilterDefinitions ? window.FilterDefinitions.getFilterPreset(fs.filterId) : null;
+            window.filterClient.renderPreviewToCanvas(slotCanvas, imgEl, photoId, preset, fs.intensity / 100, fs.adjustments);
+          }
+        }).catch((err) => {
+          console.warn('Strip slot canvas render error:', err);
+        });
+      }
 
       // Tap slot: Select active photo and STAY in full frame!
       cell.addEventListener('pointerdown', (e) => {
