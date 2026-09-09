@@ -1124,7 +1124,7 @@ main#app {
   letter-spacing: -0.02em;
 }
 
-/* Huge 140px Countdown Display (Centered in Viewfinder) */
+/* Huge Countdown Display (Centered in Viewfinder) */
 .countdown-huge-wrapper {
   position: absolute;
   top: 50%;
@@ -1133,22 +1133,89 @@ main#app {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: clamp(120px, 16vw, 170px);
-  height: clamp(120px, 16vw, 170px);
-  border-radius: 50%;
+  min-width: clamp(120px, 16vw, 170px);
+  min-height: clamp(120px, 16vw, 170px);
+  padding: 12px 24px;
+  border-radius: var(--radius-pill);
   background: var(--color-brand-yellow);
   color: var(--color-night);
   box-shadow: 0 8px 36px rgba(0, 0, 0, 0.5);
   z-index: 45;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 #countdown {
-  font-size: clamp(80px, 13vw, 120px);
+  font-size: clamp(64px, 11vw, 110px);
   font-weight: var(--font-weight-black);
-  line-height: 0.9;
-  letter-spacing: -0.06em;
+  line-height: 1;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Dedicated Pose Guidance Toast Banner (Floating, Wide, High-Contrast Frosted Glass) */
+.pose-notice-banner {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px 36px;
+  background: rgba(23, 20, 29, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2.5px solid var(--color-brand-primary, #FF4F87);
+  border-radius: 28px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65), 0 0 30px rgba(255, 79, 135, 0.4);
+  color: #FFFFFF;
+  pointer-events: none;
+  white-space: nowrap;
+  word-break: keep-all;
+  max-width: 90%;
+  box-sizing: border-box;
+  animation: poseBannerPop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.pose-notice-banner[hidden] {
+  display: none !important;
+}
+
+.pose-badge-tag {
+  background: var(--color-brand-primary, #FF4F87);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pose-main-text {
+  font-size: clamp(24px, 3.6vw, 36px);
+  font-weight: 900;
+  color: #FFFFFF;
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.pose-sub-text {
+  font-size: clamp(14px, 1.8vw, 17px);
+  font-weight: 700;
+  color: #FFD4E2;
+  white-space: nowrap;
+}
+
+@keyframes poseBannerPop {
+  0% { transform: translate(-50%, -50%) scale(0.85); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
 }
 
 /* 6-Node Progress Track: [●][●][◉][○][○][○] */

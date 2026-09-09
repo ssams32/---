@@ -40,7 +40,7 @@ window.PHOTO_BOOTH_CONFIG = {
     count: 6,
     selectionCount: 4,
     countdownSeconds: 5,
-    betweenShotsMs: 2500
+    betweenShotsMs: 4000
   },
 
   timeouts: {

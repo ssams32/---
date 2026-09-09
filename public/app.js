@@ -475,16 +475,40 @@
 
     const totalShots = CFG.capture?.count || 6;
     const countdownSec = CFG.capture?.countdownSeconds || 5;
-    const betweenMs = CFG.capture?.betweenShotsMs || 2500;
+    const betweenMs = CFG.capture?.betweenShotsMs || 4000;
+
+    const cdBox = $('#countdownBox');
+    const cdEl = $('#countdown');
+    const poseBanner = $('#poseNoticeBanner');
+    const poseBadge = $('#poseBadgeTag');
+    const poseText = $('#poseNoticeText');
+    const poseSub = $('#poseNoticeSub');
+
+    const showPoseBanner = (badge, title, sub) => {
+      if (poseBadge) poseBadge.textContent = badge;
+      if (poseText) poseText.textContent = title;
+      if (poseSub) poseSub.textContent = sub;
+      if (poseBanner) poseBanner.hidden = false;
+      if (cdBox) cdBox.style.display = 'none';
+    };
+
+    const hidePoseBanner = () => {
+      if (poseBanner) poseBanner.hidden = true;
+      if (cdBox) cdBox.style.display = 'flex';
+    };
 
     try {
       // Gentle initial preparation cue for 1st shot
-      const cd = $('#countdown');
-      if (cd) cd.textContent = '준비';
-      await sleep(1200);
+      showPoseBanner('PHOTO 1 / 6', '촬영 준비! 카메라를 봐주세요 📸', '5초 카운트다운 후 첫 번째 사진이 촬영됩니다');
+      playBeep(660, 0.12);
+      await sleep(1800);
+      if (run !== state.runId) return;
+      hidePoseBanner();
 
       for (let i = 0; i < totalShots; i++) {
         if (run !== state.runId) return;
+
+        hidePoseBanner();
 
         // Update Progress UI
         const shotCountEl = $('#shotCount');
@@ -497,7 +521,6 @@
           if (run !== state.runId) return;
           if (state.skipCountdown) break;
 
-          const cdEl = $('#countdown');
           if (cdEl) {
             cdEl.textContent = String(sec);
             cdEl.classList.remove('pulse');
@@ -519,24 +542,31 @@
           setTimeout(() => flash.classList.remove('active', 'flash'), 180);
         }
 
-        playBeep(1320, 0.16);
-        const cdEl = $('#countdown');
+        playBeep(1320, 0.18);
         if (cdEl) cdEl.textContent = '찰칵! 📸';
 
         const blob = await captureVideoBlob();
         state.shots.push({ id: uid(), blob, url: URL.createObjectURL(blob) });
 
-        // Breathing interval for pose change
+        // Breathing interval for pose change before next shot (total betweenMs = 4000ms)
         if (i < totalShots - 1) {
-          await sleep(800);
+          await sleep(900);
           if (run !== state.runId) return;
-          if (cdEl) cdEl.textContent = '다음 포즈 준비 ✨';
-          await sleep(Math.max(600, betweenMs - 800));
+
+          const nextShotNum = i + 2;
+          showPoseBanner(
+            `NEXT: ${nextShotNum} / ${totalShots}`,
+            '다음 포즈 준비! ✌️✨',
+            '자유롭게 포즈와 표정을 바꿔보세요'
+          );
+          playBeep(700, 0.1);
+          await sleep(Math.max(1500, betweenMs - 900));
         } else {
-          await sleep(600);
+          await sleep(800);
         }
       }
 
+      hidePoseBanner();
       stopCamera();
       renderPhotoSelectionGrid();
       show('select');
@@ -2425,6 +2455,11 @@
     $('#cameraErrorBox')?.setAttribute('hidden', 'true');
     $('#uploadErrorBox')?.setAttribute('hidden', 'true');
     $('#resetWarningBanner')?.classList.remove('show');
+
+    const pb = $('#poseNoticeBanner');
+    if (pb) pb.hidden = true;
+    const cb = $('#countdownBox');
+    if (cb) cb.style.display = 'flex';
 
     // Clean quad preview canvases
     for (let i = 0; i < 4; i++) {
