@@ -3215,14 +3215,23 @@ main#app {
   background: #FFFFFF;
   border-radius: 20px;
   border: 1px solid var(--color-border, #E5DEE9);
-  padding: 16px;
+  padding: 16px 16px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(33, 28, 41, 0.04);
+}
+
+.filter-tool-scrollable {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  box-shadow: 0 4px 16px rgba(33, 28, 41, 0.04);
+  padding-right: 4px;
 }
 
 /* Guide Banner for Kids & Seniors */
@@ -3537,17 +3546,64 @@ main#app {
   align-self: flex-end;
 }
 
-/* Nav Dock at Bottom of Tool Pane */
+/* Left Preview CTA Bar */
+.filter-preview-cta-bar {
+  width: 100%;
+  max-width: 520px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.btn-preview-next-cta {
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #FF4F87 0%, #E93D74 100%);
+  color: #FFFFFF;
+  border: none;
+  font-size: 16px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(255, 79, 135, 0.35);
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-preview-next-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(255, 79, 135, 0.45);
+}
+.btn-preview-next-cta:active {
+  transform: scale(0.98);
+}
+
+/* Nav Dock at Bottom of Tool Pane (Permanently Pinned, Zero Scroll Needed) */
 .filter-nav-dock {
   margin-top: auto;
   display: flex;
   gap: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #F0EAF3;
+  padding-top: 12px;
+  border-top: 1.5px solid var(--color-border, #F0EAF3);
+  background: #FFFFFF;
   flex-shrink: 0;
+  z-index: 20;
 }
-.filter-nav-dock button {
-  flex: 1;
+.filter-nav-dock .btn-kiosk-secondary {
+  flex: 0 0 38%;
+  height: 54px;
+  font-size: 14px;
+  border-radius: 14px;
+}
+.filter-nav-dock .btn-kiosk-cta-giant {
+  flex: 1 1 62%;
+  height: 54px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(255, 79, 135, 0.35) !important;
 }
 
 /* ===================================================================
@@ -3667,13 +3723,24 @@ main#app {
     min-height: 0;
     max-height: 56%;
     padding: 8px 12px;
-    gap: 6px;
+    gap: 4px;
     border-radius: 16px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
     overflow: hidden;
     box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .filter-tool-scrollable {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 2px;
+  }
+  .filter-preview-cta-bar {
+    display: none;
   }
   .filter-guide-banner {
     padding: 5px 10px;

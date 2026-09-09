@@ -27,6 +27,28 @@
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const uid = () => Math.random().toString(36).slice(2, 10);
 
+  // Web Audio Kiosk Beep Cue
+  function playBeep(freq = 880, duration = 0.08) {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!window.__boothAudioCtx) window.__boothAudioCtx = new AudioCtx();
+      const ctx = window.__boothAudioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {}
+  }
+
   // Load and validate config
   let CFG = window.PHOTO_BOOTH_CONFIG || {};
   const validation = window.validateBoothConfig ? window.validateBoothConfig(CFG) : { valid: true };
@@ -452,10 +474,15 @@
     state.skipCountdown = false;
 
     const totalShots = CFG.capture?.count || 6;
-    const countdownSec = CFG.capture?.countdownSeconds || 3;
-    const betweenMs = CFG.capture?.betweenShotsMs || 750;
+    const countdownSec = CFG.capture?.countdownSeconds || 5;
+    const betweenMs = CFG.capture?.betweenShotsMs || 2500;
 
     try {
+      // Gentle initial preparation cue for 1st shot
+      const cd = $('#countdown');
+      if (cd) cd.textContent = '준비';
+      await sleep(1200);
+
       for (let i = 0; i < totalShots; i++) {
         if (run !== state.runId) return;
 
@@ -464,15 +491,21 @@
         if (shotCountEl) shotCountEl.textContent = String(i + 1);
         updateShotTrack(i, totalShots);
 
-        // Countdown 3, 2, 1
+        // Countdown 5, 4, 3, 2, 1
         state.skipCountdown = false;
         for (let sec = countdownSec; sec >= 1; sec--) {
           if (run !== state.runId) return;
           if (state.skipCountdown) break;
 
-          const cd = $('#countdown');
-          if (cd) cd.textContent = String(sec);
-          await sleep(650);
+          const cdEl = $('#countdown');
+          if (cdEl) {
+            cdEl.textContent = String(sec);
+            cdEl.classList.remove('pulse');
+            void cdEl.offsetWidth;
+            cdEl.classList.add('pulse');
+          }
+          if (sec <= 3) playBeep(880, 0.08);
+          await sleep(1000);
         }
 
         if (run !== state.runId) return;
@@ -486,14 +519,22 @@
           setTimeout(() => flash.classList.remove('active', 'flash'), 180);
         }
 
-        const cd = $('#countdown');
-        if (cd) cd.textContent = '찰칵!';
+        playBeep(1320, 0.16);
+        const cdEl = $('#countdown');
+        if (cdEl) cdEl.textContent = '찰칵! 📸';
 
         const blob = await captureVideoBlob();
         state.shots.push({ id: uid(), blob, url: URL.createObjectURL(blob) });
 
-        // Breathing interval
-        await sleep(betweenMs);
+        // Breathing interval for pose change
+        if (i < totalShots - 1) {
+          await sleep(800);
+          if (run !== state.runId) return;
+          if (cdEl) cdEl.textContent = '다음 포즈 준비 ✨';
+          await sleep(Math.max(600, betweenMs - 800));
+        } else {
+          await sleep(600);
+        }
       }
 
       stopCamera();
@@ -2594,10 +2635,12 @@
     show('select');
   });
 
-  $('#btnFilterNext')?.addEventListener('click', () => {
+  const handleProceedToEdit = () => {
     renderDecorationEditor();
     show('edit');
-  });
+  };
+  $('#btnFilterNext')?.addEventListener('click', handleProceedToEdit);
+  $('#btnPreviewNext')?.addEventListener('click', handleProceedToEdit);
 
   // Screen 5: Editor (Auto-Zoomed & Strip Modes)
   $('#smaller')?.addEventListener('click', () => modifyActiveSticker('smaller'));

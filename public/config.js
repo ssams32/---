@@ -39,8 +39,8 @@ window.PHOTO_BOOTH_CONFIG = {
   capture: {
     count: 6,
     selectionCount: 4,
-    countdownSeconds: 3,
-    betweenShotsMs: 750
+    countdownSeconds: 5,
+    betweenShotsMs: 2500
   },
 
   timeouts: {

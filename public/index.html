@@ -332,12 +332,20 @@
               <span>전체 원본으로</span>
             </button>
           </div>
+
+          <!-- Prominent Workspace Next CTA: Always in direct line-of-sight -->
+          <div class="filter-preview-cta-bar">
+            <button type="button" class="btn-preview-next-cta" id="btnPreviewNext">
+              <span>🎨 필터 보정 완료! 스티커 꾸미기 ›</span>
+            </button>
+          </div>
         </div>
 
         <!-- Right: Filter Selection & Adjustments (Golden Ratio Control Pane) -->
         <div class="filter-tool-pane">
-          <!-- Frame Theme Selector for Instant 4-Cut Preview -->
-          <div class="frame-theme-bar filter-frame-bar">
+          <div class="filter-tool-scrollable">
+            <!-- Frame Theme Selector for Instant 4-Cut Preview -->
+            <div class="frame-theme-bar filter-frame-bar">
             <span class="theme-bar-label">🖼️ 프레임 색상:</span>
             <div class="theme-chips-row" id="filterThemeSelector" role="radiogroup" aria-label="프레임 색상 선택"></div>
           </div>
@@ -464,12 +472,13 @@
               <button type="button" class="btn-manual-reset-all" id="btnResetManualAdjustments">세부 조절 초기화</button>
             </div>
           </details>
+        </div>
 
-          <!-- Primary Action Dock -->
-          <div class="filter-nav-dock">
-            <button type="button" class="btn-kiosk-secondary" id="btnFilterBack">‹ 사진 다시 고르기</button>
-            <button type="button" class="btn-kiosk-primary btn-kiosk-cta-giant" id="btnFilterNext">🎨 스티커로 꾸미기 ›</button>
-          </div>
+        <!-- Primary Action Dock (Permanently Pinned at Bottom, Zero Scroll Needed) -->
+        <div class="filter-nav-dock">
+          <button type="button" class="btn-kiosk-secondary" id="btnFilterBack">‹ 사진 다시 고르기</button>
+          <button type="button" class="btn-kiosk-primary btn-kiosk-cta-giant" id="btnFilterNext">🎨 스티커로 꾸미기 ›</button>
+        </div>
         </div>
       </div>
     </section>
