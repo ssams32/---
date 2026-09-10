@@ -202,7 +202,17 @@
     resetInactivityTimer();
   }
 
-
+  // Inactivity / Idle Timer Handler
+  function resetInactivityTimer() {
+    clearTimeout(state.idleTimer);
+    if (state.phase === 'start') return;
+    state.idleTimer = setTimeout(() => {
+      if (state.phase !== 'start') {
+        showNotice('오랫동안 입력이 없어 초기 화면으로 돌아갑니다.');
+        resetKiosk();
+      }
+    }, 90000);
+  }
 
   // Touch listener to refresh idle timer
   ['pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
@@ -2950,9 +2960,30 @@
   // GLOBAL EVENT BINDINGS
   // ===================================================================
   // Screen 1: Start
-  $('#startBtn')?.addEventListener('click', () => show('permission'));
-  $('#visualStartZone')?.addEventListener('click', () => show('permission'));
-  $('#demoBtn')?.addEventListener('click', generateDemoShots);
+  function handleStartAction() {
+    if (isFastLaneMode()) {
+      initializeCamera();
+    } else {
+      show('permission');
+    }
+  }
+
+  $('#startBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleStartAction();
+  });
+  $('#visualStartZone')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleStartAction();
+  });
+  $('#start')?.addEventListener('click', (e) => {
+    if (e.target.closest('#demoBtn') || e.target.closest('a') || e.target.closest('button')) return;
+    handleStartAction();
+  });
+  $('#demoBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    generateDemoShots();
+  });
 
   // Screen 2: Permission
   $('#permissionStartBtn')?.addEventListener('click', initializeCamera);
