@@ -26,30 +26,9 @@
       <span class="brand-chip-badge">20TH ANNIVERSARY</span>
     </div>
 
-    <nav class="progress-rail" aria-label="촬영 단계 안내">
-      <div class="rail-step active" data-step="camera">
-        <span class="step-dot">1</span>
-        <span class="step-label">촬영</span>
-      </div>
-      <div class="rail-divider"></div>
-      <div class="rail-step" data-step="select">
-        <span class="step-dot">2</span>
-        <span class="step-label">사진 선택</span>
-      </div>
-      <div class="rail-divider"></div>
-      <div class="rail-step" data-step="filter">
-        <span class="step-dot">3</span>
-        <span class="step-label">필터</span>
-      </div>
-      <div class="rail-divider"></div>
-      <div class="rail-step" data-step="edit">
-        <span class="step-dot">4</span>
-        <span class="step-label">꾸미기</span>
-      </div>
-      <div class="rail-divider"></div>
-      <div class="rail-step" data-step="result">
-        <span class="step-dot">5</span>
-        <span class="step-label">완성</span>
+    <nav class="progress-rail" id="progressRail" aria-label="촬영 단계 안내">
+      <div class="progress-steps" id="progressStepsContainer">
+        <!-- Driven by active workflow config in app.js (4 steps in fast-lane, 5 steps in standard) -->
       </div>
     </nav>
 
@@ -173,9 +152,21 @@
             <canvas id="captureCanvas" style="display:none;" aria-hidden="true"></canvas>
             <div class="vf-corner top-left"></div>
             <div class="vf-corner top-right"></div>
-            <div class="vf-corner bottom-left"></div>
-            <div class="vf-corner bottom-right"></div>
             <div id="flash"></div>
+
+            <!-- Crop-Safe Group Guide Overlay (Derived from Final Slot Ratio) -->
+            <div class="camera-crop-overlay" id="cameraCropOverlay">
+              <div class="crop-safe-box" id="cropSafeBox">
+                <div class="crop-corner top-left"></div>
+                <div class="crop-corner top-right"></div>
+                <div class="crop-corner bottom-left"></div>
+                <div class="crop-corner bottom-right"></div>
+                <div class="crop-guide-tag" id="cropGuideTag">인쇄 비율 가이드</div>
+              </div>
+              <div class="crop-instruction-pill" id="cropInstructionPill">
+                모두 안내선 안으로 모여주세요 📸
+              </div>
+            </div>
 
             <!-- Live Ratio Switcher Badge (4:3 Landscape / Full / 3:4 Portrait) -->
             <button type="button" class="btn-ratio-toggle" id="ratioToggleBtn" title="화면 비율 변경 (4:3 와이드 / 화면 가득 / 3:4 세로)" aria-label="카메라 비율 변경">
@@ -252,9 +243,18 @@
             <div class="dest-slot" data-slot="4"><span class="slot-number-tag">4</span></div>
           </div>
 
+          <!-- Fast-Lane 4th Selection Auto-Transition Banner with Undo Window -->
+          <div class="selection-auto-banner" id="selectionAutoBanner" hidden>
+            <div class="auto-banner-content">
+              <span class="auto-banner-badge">✓ 4/4 선택 완료</span>
+              <span class="auto-banner-text">곧 출력을 준비합니다...</span>
+            </div>
+            <button type="button" class="btn-undo-selection" id="undoSelectionBtn">선택 수정</button>
+          </div>
+
           <div class="selection-actions-dock">
             <button class="btn-kiosk-secondary" id="retakeBtn">다시 촬영</button>
-            <button class="btn-kiosk-primary" id="editBtn" disabled>4장 선택 완료 (효과·필터 선택) ›</button>
+            <button class="btn-kiosk-primary" id="editBtn" disabled>4장 선택 완료 ›</button>
           </div>
         </div>
       </div>
@@ -600,6 +600,49 @@
     </section>
 
     <!-- =============================================================
+         SCREEN: DEDICATED PRINT PREVIEW (FAST-LANE WORKFLOW)
+         ============================================================= -->
+    <section id="preview" class="screen" aria-labelledby="previewHeading">
+      <div class="print-preview-layout">
+        <!-- Top: Print Guidance Header -->
+        <div class="preview-header-bar">
+          <div class="preview-title-box">
+            <h2 class="preview-heading-title" id="previewHeading">출력 준비가 되었어요</h2>
+            <p class="preview-heading-sub">한 장에 같은 네컷 사진 4장이 인쇄돼요.</p>
+          </div>
+          <div class="preview-status-pill" id="previewStatusPill">
+            <span>🖨️ 포토프린터 준비 완료</span>
+          </div>
+        </div>
+
+        <!-- Center: 4-Up Full Sheet Canvas Viewport -->
+        <div class="preview-sheet-viewport">
+          <div class="preview-sheet-wrapper">
+            <canvas id="printSheetCanvas" class="print-sheet-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Bottom: Action Dock & Operator Controls -->
+        <div class="preview-actions-dock">
+          <button type="button" class="btn-kiosk-secondary" id="printReselectBtn">‹ 사진 다시 선택</button>
+          <button type="button" class="btn-kiosk-primary btn-kiosk-cta-giant" id="printConfirmBtn">
+            <span class="btn-print-icon">🖨️</span>
+            <span id="printConfirmBtnText">인쇄하기</span>
+          </button>
+        </div>
+
+        <!-- Operator Tools Toggle Bar -->
+        <div class="preview-operator-bar">
+          <label class="operator-toggle-label">
+            <input type="checkbox" id="toggleCutGuidesCheckbox" checked>
+            <span>재단선 표시</span>
+          </label>
+          <button type="button" class="btn-op-pill" id="btnOperatorRatioReport">출력 비율 정보</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =============================================================
          14. SCREEN 7: COMPLETION (56% PHOTO : 44% QR & ACTIONS)
          ============================================================= -->
     <section id="result" class="screen" aria-labelledby="resultHeading">
@@ -755,6 +798,23 @@
       </div>
       <div class="compare-footer-bar">
         <span>슬라이더를 좌우로 밀어 원본 사진과 스케치를 비교해 보세요</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================================
+       OPERATOR PRINT GEOMETRY & RATIO REPORT MODAL
+       ============================================================= -->
+  <div class="kiosk-modal-overlay" id="ratioReportModal" hidden>
+    <div class="kiosk-modal-card">
+      <div class="kiosk-modal-header">
+        <h3>📐 Canon SELPHY CP1200 출력 비율 진단 정보</h3>
+        <button type="button" class="btn-modal-close" id="closeRatioReportBtn">✕</button>
+      </div>
+      <div class="kiosk-modal-body">
+        <div class="diag-status-list" id="geometryReportList">
+          <!-- Populated by app.js getGeometryReport() -->
+        </div>
       </div>
     </div>
   </div>

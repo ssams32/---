@@ -133,18 +133,27 @@ button:focus-visible, a:focus-visible {
 /* ===================================================================
    TOP PROGRESS RAIL (COMMERCIAL SLEEK KIOSK BAR)
    =================================================================== */
+:root {
+  --progress-height: clamp(52px, 7dvh, 72px);
+  --progress-padding-inline: clamp(12px, 2.5vw, 36px);
+  --action-dock-height: 80px;
+  --safe-vertical-spacing: 24px;
+}
+
 .kiosk-header {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: calc(64px + env(safe-area-inset-top, 0px));
+  height: calc(var(--progress-height) + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
-  padding-left: clamp(24px, 4vw, 48px);
-  padding-right: clamp(24px, 4vw, 48px);
+  padding-left: var(--progress-padding-inline);
+  padding-right: var(--progress-padding-inline);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: clamp(8px, 1.5vw, 16px);
+  overflow: hidden;
   z-index: 100;
   background: rgba(246, 242, 247, 0.94);
   backdrop-filter: blur(16px);
@@ -152,6 +161,8 @@ button:focus-visible, a:focus-visible {
   border-bottom: 1px solid var(--color-border);
   transition: opacity var(--duration-screen) var(--ease-standard),
               transform var(--duration-screen) var(--ease-standard);
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 .kiosk-header.hidden-header {
@@ -170,12 +181,14 @@ button:focus-visible, a:focus-visible {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  padding: 5px 12px;
   background: #FFFFFF;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   box-shadow: var(--shadow-soft);
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .kiosk-header.shooting-mode .brand-chip {
@@ -185,7 +198,7 @@ button:focus-visible, a:focus-visible {
 }
 
 .brand-chip-title {
-  font-size: var(--font-size-caption);
+  font-size: 13px;
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.02em;
   white-space: nowrap;
@@ -193,92 +206,165 @@ button:focus-visible, a:focus-visible {
 }
 
 .brand-chip-badge {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: var(--font-weight-black);
   color: var(--color-brand-primary);
   background: var(--color-brand-primary-soft);
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
-/* Progress Rail */
+/* Progress Rail (Section 4 & 5: Strict Responsive Single-Line Grid/Flex Architecture) */
 .progress-rail {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--progress-height);
+  overflow: hidden;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
-.rail-step {
+.progress-steps {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 6px 14px;
+  justify-content: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  gap: clamp(6px, 1.2vw, 16px);
+}
+
+.progress-step,
+.rail-step {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(4px, 0.8vw, 8px);
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  line-height: 1.25;
+  padding: 4px clamp(6px, 1vw, 12px);
   border-radius: var(--radius-pill);
-  font-size: var(--font-size-caption);
+  font-size: clamp(12px, 1.7vw, 18px);
   font-weight: var(--font-weight-bold);
   color: var(--color-ink-secondary);
   transition: all var(--duration-fast) var(--ease-standard);
+  padding-bottom: calc(4px + 0.18em);
+  word-break: keep-all;
 }
 
+.progress-step-label,
+.step-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.kiosk-header.shooting-mode .progress-step,
 .kiosk-header.shooting-mode .rail-step {
   color: rgba(255, 255, 255, 0.5);
 }
 
+.progress-step-dot,
 .step-dot {
-  width: 24px;
-  height: 24px;
+  width: clamp(20px, 2.2vw, 24px);
+  height: clamp(20px, 2.2vw, 24px);
   border-radius: 50%;
   background: var(--color-border);
   color: var(--color-ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: clamp(10px, 1.2vw, 12px);
   font-weight: var(--font-weight-black);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  line-height: 1;
   transition: all var(--duration-fast) var(--ease-standard);
 }
 
+.kiosk-header.shooting-mode .progress-step-dot,
 .kiosk-header.shooting-mode .step-dot {
   background: rgba(255, 255, 255, 0.2);
   color: #FFFFFF;
 }
 
+.progress-step.active,
 .rail-step.active {
   background: var(--color-brand-primary-soft);
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-extra-bold);
 }
 
+.kiosk-header.shooting-mode .progress-step.active,
 .kiosk-header.shooting-mode .rail-step.active {
   background: rgba(255, 79, 135, 0.2);
   color: var(--color-brand-primary);
 }
 
+.progress-step.active .progress-step-dot,
 .rail-step.active .step-dot {
   background: var(--color-brand-primary);
   color: #FFFFFF;
 }
 
+.progress-step.completed,
 .rail-step.completed {
   color: var(--color-success);
 }
 
+.progress-step.completed .progress-step-dot,
 .rail-step.completed .step-dot {
   background: var(--color-success);
   color: #FFFFFF;
 }
 
+.progress-connector,
 .rail-divider {
-  width: 16px;
+  width: clamp(10px, 2vw, 28px);
   height: 2px;
   background: var(--color-border);
+  flex-shrink: 0;
   border-radius: 1px;
 }
 
+.kiosk-header.shooting-mode .progress-connector,
 .kiosk-header.shooting-mode .rail-divider {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* iPad Viewport Responsive Scaling Rules */
+@media (min-width: 1024px) and (orientation: landscape) {
+  .progress-step,
+  .rail-step {
+    font-size: clamp(14px, 1.5vw, 18px);
+  }
+}
+
+@media (min-width: 768px) and (orientation: portrait) {
+  .progress-step,
+  .rail-step {
+    font-size: clamp(12px, 2.0vw, 16px);
+  }
+}
+
+@media (max-height: 700px) and (orientation: landscape) {
+  .progress-step,
+  .rail-step {
+    font-size: clamp(12px, 1.4vw, 14px);
+  }
+  .progress-connector,
+  .rail-divider {
+    width: clamp(8px, 1.2vw, 14px);
+  }
 }
 
 .header-tools {
@@ -342,6 +428,38 @@ main#app {
   transition: opacity var(--duration-screen) var(--ease-standard),
               transform var(--duration-screen) var(--ease-standard);
   transform: scale(0.985);
+  box-sizing: border-box;
+}
+
+.screen:not(#start) {
+  padding-top: calc(var(--progress-height) + env(safe-area-inset-top, 0px));
+}
+
+/* Three-Row Screen Shell & Containment (Section 5 & 6) */
+.kiosk-screen {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.main-stage {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: 24px;
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.preview-stage {
+  max-height: calc(
+    100dvh
+    - var(--progress-height)
+    - var(--action-dock-height)
+    - var(--safe-vertical-spacing)
+  );
+  object-fit: contain;
 }
 
 .screen.active {
@@ -1124,34 +1242,40 @@ main#app {
   letter-spacing: -0.02em;
 }
 
-/* Huge Countdown Display (Centered in Viewfinder) */
+/* Sleek, Non-Obtrusive Countdown Badge (Top-Right of Viewfinder, Never Covers Faces) */
 .countdown-huge-wrapper {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 24px;
+  right: 28px;
+  left: auto;
+  transform: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: clamp(120px, 16vw, 170px);
-  min-height: clamp(120px, 16vw, 170px);
-  padding: 12px 24px;
+  min-width: 72px;
+  min-height: 72px;
+  padding: 8px 18px;
   border-radius: var(--radius-pill);
-  background: var(--color-brand-yellow);
-  color: var(--color-night);
-  box-shadow: 0 8px 36px rgba(0, 0, 0, 0.5);
+  background: rgba(23, 20, 29, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 2.5px solid var(--color-brand-yellow, #FFC93C);
+  color: #FFC93C;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45), 0 0 16px rgba(255, 201, 60, 0.35);
   z-index: 45;
   pointer-events: none;
   white-space: nowrap;
+  transition: transform 0.15s ease, background 0.2s ease;
 }
 
 #countdown {
-  font-size: clamp(64px, 11vw, 110px);
+  font-size: clamp(34px, 5.2vw, 48px);
   font-weight: var(--font-weight-black);
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 /* Dedicated Pose Guidance Toast Banner (Floating, Wide, High-Contrast Frosted Glass) */
@@ -1505,9 +1629,16 @@ main#app {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 10px;
   min-height: 0;
+  overflow-y: auto;
+  padding-top: 6px;
+  padding-bottom: 20px;
+  scrollbar-width: none;
+}
+.editor-workspace-pane::-webkit-scrollbar {
+  display: none;
 }
 
 /* Topbar: Photo Nav Tabs + View Mode Toggle */
@@ -1518,6 +1649,7 @@ main#app {
   width: 100%;
   max-width: 620px;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .photo-nav-rail {
@@ -1535,13 +1667,13 @@ main#app {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 42px;
-  padding: 6px 14px;
+  height: 40px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--color-border);
   background: var(--color-surface-elevated, #FFFFFF);
   color: var(--color-text-primary, #211C29);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -1581,8 +1713,8 @@ main#app {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 42px;
-  padding: 6px 14px;
+  height: 40px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
   border: 1.5px solid var(--color-border);
   background: rgba(33, 28, 41, 0.05);
@@ -1611,7 +1743,7 @@ main#app {
 .zoomed-photo-card {
   width: 100%;
   aspect-ratio: 4 / 3;
-  max-height: calc(100vh - 240px);
+  max-height: clamp(240px, 42vh, 380px);
   background: #0A090D;
   border-radius: 20px;
   overflow: hidden;
@@ -1743,13 +1875,42 @@ main#app {
   word-break: keep-all;
   flex-shrink: 0;
 }
+.strip-fixed-neouri-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.strip-fixed-neouri-header img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+}
+
 .strip-mockup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
   font-size: 11px;
   font-weight: 700;
   padding-top: 8px;
   margin-top: 6px;
   border-top: 1px dashed rgba(0,0,0,0.1);
+  white-space: nowrap;
+}
+.strip-fixed-neouri-footer-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.12));
+}
+
+/* Single Frame Policy: Hide multi-color theme selector bars */
+.frame-theme-bar,
+.filter-theme-bar {
+  display: none !important;
 }
 .strip-slot-badge {
   position: absolute;
@@ -2377,23 +2538,43 @@ main#app {
   /* Common Header Slimming in Portrait */
   .kiosk-header {
     height: calc(52px + env(safe-area-inset-top, 0px));
-    padding-inline: 16px;
+    padding-inline: 12px;
+    gap: 6px;
+  }
+  .brand-chip {
+    padding: 4px 8px;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 170px;
   }
   .brand-chip-title {
-    font-size: 13px;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .brand-chip-badge {
+    display: none;
   }
   .progress-rail {
-    gap: 4px;
+    gap: 3px;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   .rail-step {
-    padding: 4px 8px;
+    padding: 3px 6px;
     font-size: 11px;
-    gap: 4px;
+    gap: 3px;
+    white-space: nowrap;
+    word-break: keep-all;
+    flex-shrink: 0;
+    line-height: 1;
   }
   .step-dot {
-    width: 20px;
-    height: 20px;
-    font-size: 11px;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    flex-shrink: 0;
   }
 
   .screen {
@@ -4201,5 +4382,344 @@ main#app {
   font-size: 12.5px;
   color: #6E6778;
   font-weight: 600;
+}
+
+/* ===================================================================
+   FAST-LANE: CAMERA CROP-SAFE GROUP OVERLAY (DERIVED FROM PRINT LAYOUT)
+   =================================================================== */
+.camera-crop-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crop-safe-box {
+  position: relative;
+  width: 88%;
+  aspect-ratio: 540 / 171.84; /* ~3.1425 derived from Canon SELPHY 4-up postcard geometry */
+  max-height: 60%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.42);
+  border-radius: 8px;
+  transition: all 0.25s ease;
+}
+
+.crop-safe-box .crop-corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: #FFC93C;
+  border-style: solid;
+}
+.crop-safe-box .crop-corner.top-left { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 6px; }
+.crop-safe-box .crop-corner.top-right { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 6px; }
+.crop-safe-box .crop-corner.bottom-left { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 6px; }
+.crop-safe-box .crop-corner.bottom-right { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 6px; }
+
+.crop-guide-tag {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #FFC93C;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.crop-instruction-pill {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(23, 20, 29, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #FFFFFF;
+  padding: 6px 20px;
+  border-radius: var(--radius-pill);
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.38);
+}
+
+/* ===================================================================
+   FAST-LANE: SELECTION AUTO-TRANSITION BANNER WITH UNDO WINDOW
+   =================================================================== */
+.selection-auto-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 18px;
+  background: rgba(33, 28, 41, 0.94);
+  color: #FFFFFF;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-brand-primary);
+  box-shadow: 0 8px 24px rgba(255, 79, 135, 0.25);
+  margin-top: 10px;
+  animation: bannerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auto-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auto-banner-badge {
+  background: var(--color-brand-primary);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  letter-spacing: -0.01em;
+}
+
+.auto-banner-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.btn-undo-selection {
+  background: rgba(255, 255, 255, 0.15);
+  color: #FFC93C;
+  border: 1px solid #FFC93C;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.btn-undo-selection:hover {
+  background: #FFC93C;
+  color: #17141D;
+}
+
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================================================================
+   FAST-LANE: DEDICATED PRINT PREVIEW SCREEN (SECTION 23 & 24)
+   =================================================================== */
+.print-preview-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-4) clamp(16px, 3vw, 40px);
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.preview-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 820px;
+  flex-shrink: 0;
+}
+
+.preview-heading-title {
+  font-size: clamp(20px, 2.8vw, 28px);
+  font-weight: var(--font-weight-extra-bold);
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.preview-heading-sub {
+  font-size: clamp(13px, 1.6vw, 15px);
+  color: var(--color-ink-secondary);
+  margin: 3px 0 0 0;
+}
+
+.preview-status-pill {
+  padding: 6px 14px;
+  background: #FFFFFF;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink);
+  box-shadow: var(--shadow-soft);
+  white-space: nowrap;
+}
+
+.preview-sheet-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 820px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.preview-sheet-wrapper {
+  max-height: calc(100dvh - var(--progress-height) - var(--action-dock-height, 80px) - var(--safe-vertical-spacing, 32px));
+  max-width: 100%;
+  aspect-ratio: 1200 / 1776;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18), 0 2px 10px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #FFFFFF;
+  transition: transform 0.2s ease;
+}
+
+.print-sheet-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.preview-actions-dock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+  flex-shrink: 0;
+  padding-bottom: 4px;
+}
+
+.preview-actions-dock .btn-kiosk-cta-giant {
+  flex: 1;
+  max-width: 380px;
+}
+
+.preview-operator-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--color-ink-secondary);
+  flex-shrink: 0;
+}
+
+.operator-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-op-pill {
+  background: none;
+  border: 1px solid var(--color-border);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+}
+
+/* ===================================================================
+   CANON SELPHY CP1200 POSTCARD (100x148mm) PRINT MEDIA QUERY
+   =================================================================== */
+@media print {
+  @page {
+    size: 100mm 148mm portrait;
+    margin: 0;
+  }
+  body, html {
+    width: 100mm !important;
+    height: 148mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+    overflow: hidden !important;
+  }
+  #kioskHeader,
+  #app > *:not(#preview),
+  .preview-header-bar,
+  .preview-actions-dock,
+  .preview-operator-bar,
+  .header-tools,
+  .notice {
+    display: none !important;
+  }
+  #preview {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100mm !important;
+    height: 148mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FFFFFF !important;
+  }
+  .print-preview-layout {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .preview-sheet-viewport {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .preview-sheet-wrapper {
+    width: 100mm !important;
+    height: 148mm !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+  .print-sheet-canvas {
+    width: 100mm !important;
+    height: 148mm !important;
+    object-fit: cover !important;
+  }
+  #printArea {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100mm !important;
+    height: 148mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
+    background: #FFFFFF !important;
+  }
+  #printArea img,
+  #printArea canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
 }
 

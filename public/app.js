@@ -81,10 +81,68 @@
     idleTimer: null,
     completionTimer: null,
     warningTimer: null,
-    abortController: null
+    abortController: null,
+
+    // FAST-LANE State Extensions
+    selectionLocked: false,
+    autoTransitionTimer: null,
+    undoTimer: null,
+    showCutGuides: true,
+    masterCardCanvas: null,
+    printSheetCanvas: null,
+    printState: {
+      status: 'idle', // 'idle' | 'rendering' | 'ready' | 'printing' | 'printed' | 'failed'
+      sessionId: 0,
+      lastPrintedAt: null
+    }
   };
 
-  const screens = ['start', 'permission', 'camera', 'select', 'filter', 'edit', 'composing', 'result'];
+  const screens = ['start', 'permission', 'camera', 'select', 'filter', 'edit', 'composing', 'preview', 'result'];
+
+  function isFastLaneMode() {
+    return (CFG.eventMode?.mode || 'fast-lane') === 'fast-lane';
+  }
+
+  // Dynamic Workflow Steps (Section 3: Fast-Lane vs Standard Mode)
+  function getWorkflowSteps() {
+    if (isFastLaneMode()) {
+      return [
+        { id: 'camera', label: '촬영' },
+        { id: 'select', label: '사진 선택' },
+        { id: 'preview', label: '출력' },
+        { id: 'result', label: '완성' }
+      ];
+    }
+    return [
+      { id: 'camera', label: '촬영' },
+      { id: 'select', label: '사진 선택' },
+      { id: 'filter', label: '필터' },
+      { id: 'edit', label: '꾸미기' },
+      { id: 'result', label: '완성' }
+    ];
+  }
+
+  function renderProgressRail() {
+    const container = $('#progressStepsContainer');
+    if (!container) return;
+    container.replaceChildren();
+    const steps = getWorkflowSteps();
+    steps.forEach((st, idx) => {
+      if (idx > 0) {
+        const div = document.createElement('div');
+        div.className = 'progress-connector rail-divider';
+        container.append(div);
+      }
+      const stepEl = document.createElement('div');
+      stepEl.className = 'progress-step rail-step';
+      stepEl.dataset.step = st.id;
+      stepEl.innerHTML = `
+        <span class="progress-step-dot step-dot">${idx + 1}</span>
+        <span class="progress-step-label step-label">${st.label}</span>
+      `;
+      container.append(stepEl);
+    });
+  }
 
   // Apply Brand Strings to DOM
   function applyBranding() {
@@ -118,6 +176,7 @@
           customBackgrounds: data.config.customBackgrounds || []
         };
         applyBranding();
+        renderProgressRail();
       }
     } catch {}
   }
@@ -143,73 +202,7 @@
     resetInactivityTimer();
   }
 
-  // Update Top Progress Rail (5 Steps: 촬영 -> 사진 선택 -> 필터 -> 꾸미기 -> 완성)
-  function updateProgressRail(currentScreen) {
-    const stepMapping = {
-      permission: 'camera',
-      camera: 'camera',
-      select: 'select',
-      filter: 'filter',
-      edit: 'edit',
-      composing: 'result',
-      result: 'result'
-    };
-    const activeStep = stepMapping[currentScreen] || 'camera';
-    const stepOrder = ['camera', 'select', 'filter', 'edit', 'result'];
-    const activeIdx = stepOrder.indexOf(activeStep);
 
-    $$('.rail-step').forEach((stepEl) => {
-      const stepName = stepEl.dataset.step;
-      const stepIdx = stepOrder.indexOf(stepName);
-      stepEl.classList.toggle('active', stepIdx === activeIdx);
-      stepEl.classList.toggle('completed', stepIdx < activeIdx);
-      const dot = stepEl.querySelector('.step-dot');
-      if (dot) {
-        dot.textContent = stepIdx < activeIdx ? '✓' : String(stepIdx + 1);
-      }
-    });
-  }
-
-  // Inactivity & Auto-Reset Controller
-  function resetInactivityTimer() {
-    clearTimeout(state.idleTimer);
-    clearTimeout(state.completionTimer);
-    clearInterval(state.warningTimer);
-    $('#resetWarningBanner')?.classList.remove('show');
-
-    if (state.phase === 'start') return;
-
-    if (state.phase === 'result') {
-      // Completion Screen Auto-Reset with 15s warning banner
-      const totalMs = CFG.timeouts?.completionResetMs || 90000;
-      const warningSec = CFG.timeouts?.finalWarningSeconds || 15;
-      const warningStartMs = Math.max(0, totalMs - warningSec * 1000);
-
-      state.idleTimer = setTimeout(() => {
-        let remaining = warningSec;
-        const banner = $('#resetWarningBanner');
-        const text = $('#resetSecondsText');
-        if (banner) banner.classList.add('show');
-        if (text) text.textContent = `${remaining}초`;
-
-        state.warningTimer = setInterval(() => {
-          remaining--;
-          if (text) text.textContent = `${remaining}초`;
-          if (remaining <= 0) {
-            clearInterval(state.warningTimer);
-            resetKiosk();
-          }
-        }, 1000);
-      }, warningStartMs);
-    } else {
-      // Normal In-session Inactivity Reset (2 minutes)
-      const idleMs = CFG.timeouts?.idleResetMs || 120000;
-      state.idleTimer = setTimeout(() => {
-        showNotice('장시간 입력이 없어 안전을 위해 처음 화면으로 이동합니다.');
-        resetKiosk();
-      }, idleMs);
-    }
-  }
 
   // Touch listener to refresh idle timer
   ['pointerdown', 'keydown', 'touchstart'].forEach((evt) => {
@@ -465,6 +458,23 @@
     });
   }
 
+  function getDerivedSlotAspectRatio() {
+    if (CFG.capture?.slotAspectRatioMode === 'explicit' && CFG.capture?.explicitSlotAspectRatio) {
+      return Number(CFG.capture.explicitSlotAspectRatio);
+    }
+    if (typeof window.deriveSlotAspectRatio === 'function') {
+      return window.deriveSlotAspectRatio(CFG.printLayout);
+    }
+    return 540 / 171.84;
+  }
+
+  function updateCameraCropGuide() {
+    const cropBox = $('#cropSafeBox');
+    if (!cropBox) return;
+    const slotRatio = getDerivedSlotAspectRatio();
+    cropBox.style.aspectRatio = String(slotRatio);
+  }
+
   // Automated 6-Shot Shooting Sequence with Manual Shutter Support
   async function startShootingSequence() {
     const run = state.runId;
@@ -472,10 +482,14 @@
     state.selected = [];
     state.stickers.clear();
     state.skipCountdown = false;
+    state.selectionLocked = false;
+    updateCameraCropGuide();
 
-    const totalShots = CFG.capture?.count || 6;
-    const countdownSec = CFG.capture?.countdownSeconds || 5;
-    const betweenMs = CFG.capture?.betweenShotsMs || 4000;
+    const isFast = isFastLaneMode();
+    const eventTiming = CFG.eventMode?.timing || {};
+    const totalShots = (isFast && CFG.eventMode?.workflow?.captureCount) || CFG.capture?.count || 6;
+    const countdownSec = (isFast && eventTiming.countdownSeconds) || CFG.capture?.countdownSeconds || 3;
+    const betweenMs = (isFast && eventTiming.betweenShotsMs) || CFG.capture?.betweenShotsMs || 700;
 
     const cdBox = $('#countdownBox');
     const cdEl = $('#countdown');
@@ -499,9 +513,9 @@
 
     try {
       // Gentle initial preparation cue for 1st shot
-      showPoseBanner('PHOTO 1 / 6', '촬영 준비! 카메라를 봐주세요 📸', '5초 카운트다운 후 첫 번째 사진이 촬영됩니다');
+      showPoseBanner('PHOTO 1 / ' + totalShots, '촬영 준비! 카메라를 봐주세요 📸', `${countdownSec}초 카운트다운 후 첫 번째 사진이 촬영됩니다`);
       playBeep(660, 0.12);
-      await sleep(1800);
+      await sleep(1500);
       if (run !== state.runId) return;
       hidePoseBanner();
 
@@ -677,6 +691,8 @@
   }
 
   function togglePhotoSelection(photoId) {
+    if (state.selectionLocked) return;
+
     const idx = state.selected.indexOf(photoId);
     if (idx >= 0) {
       // Deselect and compact sequence
@@ -689,6 +705,44 @@
     updateSelectionCounter();
     updateSelectionBadges();
     updateDestinationMockup();
+
+    // Fast-Lane Auto Transition Trigger
+    if (state.selected.length === 4) {
+      if (isFastLaneMode()) {
+        handleFastLaneFourthSelection();
+      }
+    } else {
+      clearTimeout(state.autoTransitionTimer);
+      const autoBanner = $('#selectionAutoBanner');
+      if (autoBanner) autoBanner.hidden = true;
+    }
+  }
+
+  function handleFastLaneFourthSelection() {
+    state.selectionLocked = true;
+    const autoBanner = $('#selectionAutoBanner');
+    if (autoBanner) autoBanner.hidden = false;
+
+    clearTimeout(state.autoTransitionTimer);
+    // Wait 350ms so user clearly perceives the 4th slot fill, then offer 1.2s undo window before auto-composing
+    state.autoTransitionTimer = setTimeout(() => {
+      if (autoBanner) autoBanner.hidden = true;
+      executeCompletionWorkflow();
+    }, 1200);
+  }
+
+  function undoSelection() {
+    clearTimeout(state.autoTransitionTimer);
+    state.selectionLocked = false;
+    const autoBanner = $('#selectionAutoBanner');
+    if (autoBanner) autoBanner.hidden = true;
+
+    if (state.selected.length === 4) {
+      state.selected.pop();
+      updateSelectionCounter();
+      updateSelectionBadges();
+      updateDestinationMockup();
+    }
   }
 
   function updateSelectionCounter() {
@@ -696,7 +750,14 @@
     const badge = $('#selectionCounterBadge');
     if (badge) badge.textContent = `${count} / 4 선택`;
     const completeBtn = $('#editBtn');
-    if (completeBtn) completeBtn.disabled = count !== 4;
+    if (completeBtn) {
+      completeBtn.disabled = count !== 4;
+      if (isFastLaneMode()) {
+        completeBtn.textContent = count === 4 ? '✨ 바로 출력하기 ›' : '4장 선택 완료 ›';
+      } else {
+        completeBtn.textContent = '4장 선택 완료 (효과·필터 선택) ›';
+      }
+    }
   }
 
   function updateSelectionBadges() {
@@ -1705,12 +1766,16 @@
     preview.style.background = theme.backgroundColor || '#FFFDF9';
     preview.style.color = theme.textColor || '#211C29';
 
-    // 1. Frame Header
+    // 1. Frame Header with Neouri Stickers
     const header = document.createElement('div');
-    header.className = 'strip-mockup-header';
+    header.className = 'strip-mockup-header strip-fixed-neouri-header';
     header.innerHTML = `
-      <span class="fm-title" style="color: ${theme.textColor || '#211C29'}; font-size: 13px; font-weight: 800;">${CFG.branding?.title || '이천시정신건강복지센터 20주년'}</span>
-      <span class="fm-subtitle" style="color: ${theme.accentColor || '#8E72D8'}; font-size: 11px; font-weight: 700;">MAEUM FOUR CUTS</span>
+      <img src="/stickers/icheon_20th_01.png" alt="neouri left" />
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <span class="fm-title" style="color: ${theme.textColor || '#211C29'}; font-size: 13px; font-weight: 800;">${CFG.branding?.title || '이천시정신건강복지센터 20주년'}</span>
+        <span class="fm-subtitle" style="color: ${theme.accentColor || '#8E72D8'}; font-size: 11px; font-weight: 700;">MAEUM FOUR CUTS</span>
+      </div>
+      <img src="/stickers/icheon_20th_11.png" alt="neouri right" />
     `;
     preview.append(header);
 
@@ -1794,11 +1859,15 @@
 
     preview.append(grid);
 
-    // 3. Frame Footer
+    // 3. Frame Footer with Neouri Stickers
     const footer = document.createElement('div');
     footer.className = 'strip-mockup-footer';
     footer.style.color = theme.textColor || '#211C29';
-    footer.textContent = '당신의 오늘을 늘 응원합니다 ✨';
+    footer.innerHTML = `
+      <img src="/stickers/icheon_20th_04.png" class="strip-fixed-neouri-footer-img" alt="footer sticker" />
+      <span>당신의 오늘을 늘 응원합니다 ✨</span>
+      <img src="/stickers/icheon_20th_05.png" class="strip-fixed-neouri-footer-img" alt="footer sticker" />
+    `;
     preview.append(footer);
 
     state.selected.forEach((photoId) => renderPhotoStickers(photoId));
@@ -2104,7 +2173,219 @@
     ctx.drawImage(img, (imgW - sw) / 2, (imgH - sh) / 2, sw, sh, x, y, w, h);
   }
 
+  // ===================================================================
+  // FAST-LANE MASTER CARD & PRINT SHEET ENGINE (SECTIONS 8, 9, 10, 11, 14, 15, 21)
+  // ===================================================================
+  async function composeMasterCardCanvas() {
+    // Master Card: 576 x 864 base dimensions (2:3 aspect ratio), 2x scale (1152 x 1728) for print precision
+    const scale = 2;
+    const cardW = 576 * scale;
+    const cardH = 864 * scale;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cardW;
+    canvas.height = cardH;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    const framePreset = CFG.frames?.presets?.find((f) => f.id === 'event-black') || {
+      colors: {
+        background: '#0B0B0D',
+        photoBorder: '#2A2A2F',
+        primaryText: '#FFFFFF',
+        secondaryText: '#CFCFD4',
+        accent: '#FF4F87'
+      },
+      header: { text: '오늘의 마음 네컷', heightRatio: 0.060 },
+      footer: { text: '당신의 오늘을 응원합니다', heightRatio: 0.075 },
+      photo: { cornerRadiusRatio: 0.012, borderWidthRatio: 0.003, gapRatio: 0.010 }
+    };
+
+    // 1. Fill Event-Black Background
+    ctx.fillStyle = framePreset.colors?.background || '#0B0B0D';
+    ctx.fillRect(0, 0, cardW, cardH);
+
+    const innerPadding = 18 * scale;
+    const photoGap = 8 * scale;
+    const headerHeight = cardH * (framePreset.header?.heightRatio || 0.060);
+    const footerHeight = cardH * (framePreset.footer?.heightRatio || 0.075);
+    const photoCount = 4;
+
+    const photoContentH = cardH - headerHeight - footerHeight - (innerPadding * 2) - ((photoCount - 1) * photoGap);
+    const slotH = photoContentH / photoCount;
+    const slotW = cardW - (innerPadding * 2);
+    const cornerRadius = cardH * (framePreset.photo?.cornerRadiusRatio || 0.012);
+    const borderWidth = Math.max(1, cardH * (framePreset.photo?.borderWidthRatio || 0.003));
+
+    // 2. Render 4 Vertically Stacked Photos
+    const startY = innerPadding + headerHeight;
+    for (let i = 0; i < 4; i++) {
+      const photoId = state.selected[i];
+      const s = state.shots.find((x) => x.id === photoId);
+      if (!s) continue;
+      const img = await loadHtmlImage(s.url);
+
+      const px = innerPadding;
+      const py = startY + i * (slotH + photoGap);
+
+      // Rounded photo slot clipping
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(px, py, slotW, slotH, cornerRadius);
+      ctx.clip();
+      drawCover(ctx, img, px, py, slotW, slotH);
+      ctx.restore();
+
+      // Subtle dark gray / warm white border
+      ctx.save();
+      ctx.strokeStyle = framePreset.colors?.photoBorder || '#2A2A2F';
+      ctx.lineWidth = borderWidth;
+      ctx.beginPath();
+      ctx.roundRect(px, py, slotW, slotH, cornerRadius);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. Header Branding Text
+    ctx.fillStyle = framePreset.colors?.primaryText || '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 ${Math.round(23 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.letterSpacing = '1px';
+    const headerCenterY = innerPadding + headerHeight / 2 - (2 * scale);
+    ctx.fillText(framePreset.header?.text || '오늘의 마음 네컷', cardW / 2, headerCenterY);
+
+    ctx.font = `700 ${Math.round(11 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.fillStyle = framePreset.colors?.secondaryText || '#CFCFD4';
+    ctx.fillText('MAEUM FOUR CUTS', cardW / 2, headerCenterY + (18 * scale));
+
+    // 4. Footer Text and Date
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    const footerCenterY = cardH - innerPadding - footerHeight / 2;
+
+    ctx.fillStyle = framePreset.colors?.secondaryText || '#CFCFD4';
+    ctx.font = `700 ${Math.round(15 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(framePreset.footer?.text || '당신의 오늘을 응원합니다', cardW / 2, footerCenterY - (8 * scale));
+
+    ctx.font = `600 ${Math.round(11 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.fillStyle = framePreset.colors?.accent || '#FF4F87';
+    ctx.fillText(`${dateStr} · 20th ANNIVERSARY`, cardW / 2, footerCenterY + (12 * scale));
+
+    // 5. Fixed Event Sticker Preset Decoration (Section 10 & 11)
+    const stickerPreset = CFG.fixedStickerPresets?.presets?.find((p) => p.id === 'event-fixed-decoration') || {
+      placements: [
+        { id: 'top-sparkle', type: 'emoji', value: '✨', target: 'card', x: 0.90, y: 0.045, scale: 0.040, rotation: -0.12, opacity: 0.85 },
+        { id: 'bottom-heart', type: 'emoji', value: '💜', target: 'card', x: 0.08, y: 0.952, scale: 0.034, rotation: 0.10, opacity: 0.90 }
+      ]
+    };
+
+    if (stickerPreset?.placements) {
+      for (const pl of stickerPreset.placements) {
+        ctx.save();
+        const sx = pl.x * cardW;
+        const sy = pl.y * cardH;
+        const sSize = Math.round(cardW * (pl.scale || 0.040));
+        ctx.translate(sx, sy);
+        ctx.rotate(pl.rotation || 0);
+        ctx.globalAlpha = pl.opacity !== undefined ? pl.opacity : 0.9;
+        ctx.font = `${sSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pl.value, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    return canvas;
+  }
+
+  function composePrintSheetCanvas(masterCanvas, showCutGuides = true) {
+    const pl = CFG.printLayout || {};
+    const sheetW = pl.sheet?.width || 1200;
+    const sheetH = pl.sheet?.height || 1776;
+
+    const sheetCanvas = document.createElement('canvas');
+    sheetCanvas.width = sheetW;
+    sheetCanvas.height = sheetH;
+    const sCtx = sheetCanvas.getContext('2d', { alpha: false });
+    sCtx.imageSmoothingEnabled = true;
+    sCtx.imageSmoothingQuality = 'high';
+
+    // 1. Fill White Postcard Background
+    sCtx.fillStyle = pl.sheet?.backgroundColor || '#FFFFFF';
+    sCtx.fillRect(0, 0, sheetW, sheetH);
+
+    // 2. Draw 4 Identical Master Cards in 2x2 Grid
+    // Copy 0: (18, 18)
+    // Copy 1: (606, 18)
+    // Copy 2: (18, 894)
+    // Copy 3: (606, 894)
+    const cardW = 576;
+    const cardH = 864;
+    const positions = [
+      { x: 18, y: 18 },
+      { x: 606, y: 18 },
+      { x: 18, y: 894 },
+      { x: 606, y: 894 }
+    ];
+
+    positions.forEach((pos) => {
+      sCtx.drawImage(masterCanvas, pos.x, pos.y, cardW, cardH);
+    });
+
+    // 3. Render Center Cut Guides (x=600, y=888) if Enabled
+    if (showCutGuides && pl.cutGuide?.visible !== false) {
+      sCtx.save();
+      sCtx.strokeStyle = pl.cutGuide?.color || '#B8B8B8';
+      sCtx.lineWidth = pl.cutGuide?.width || 1;
+      sCtx.globalAlpha = pl.cutGuide?.opacity || 0.55;
+      sCtx.setLineDash(pl.cutGuide?.dash || [8, 8]);
+
+      // Vertical center cut
+      sCtx.beginPath();
+      sCtx.moveTo(sheetW / 2, 0);
+      sCtx.lineTo(sheetW / 2, sheetH);
+      sCtx.stroke();
+
+      // Horizontal center cut
+      sCtx.beginPath();
+      sCtx.moveTo(0, sheetH / 2);
+      sCtx.lineTo(sheetW, sheetH / 2);
+      sCtx.stroke();
+
+      sCtx.restore();
+    }
+
+    return sheetCanvas;
+  }
+
   async function composeFinalCanvasBlob() {
+    if (isFastLaneMode()) {
+      // Clear participant stickers to enforce fixed design
+      state.stickers.clear();
+
+      // 1. Compose Single Master Card
+      const masterCanvas = await composeMasterCardCanvas();
+      state.masterCardCanvas = masterCanvas;
+
+      // 2. Compose 4-Up Print Sheet for Canon SELPHY CP1200
+      const sheetCanvas = composePrintSheetCanvas(masterCanvas, state.showCutGuides);
+      state.printSheetCanvas = sheetCanvas;
+
+      // 3. Render Digital Master into #finalCanvas
+      const finalCanvas = $('#finalCanvas');
+      finalCanvas.width = masterCanvas.width;
+      finalCanvas.height = masterCanvas.height;
+      const fCtx = finalCanvas.getContext('2d', { alpha: false });
+      fCtx.drawImage(masterCanvas, 0, 0);
+
+      return new Promise((resolve) => finalCanvas.toBlob(resolve, 'image/jpeg', 0.95));
+    }
+
     const f = CFG.frame || { width: 1200, height: 1420, headerHeight: 120, footerHeight: 100, padding: 40, gap: 20 };
     const canvas = $('#finalCanvas');
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -2133,6 +2414,14 @@
     ctx.font = '600 18px "Pretendard Variable", Pretendard, -apple-system, sans-serif';
     ctx.fillStyle = theme.footerColor || '#726A7C';
     ctx.fillText('MAEUM FOUR CUTS PHOTO BOOTH', f.width / 2, f.headerHeight / 2 + 24);
+
+    // [NEW] Draw Official Neouri Stickers on Header
+    try {
+      const hLeft = await loadHtmlImage('/stickers/icheon_20th_01.png');
+      const hRight = await loadHtmlImage('/stickers/icheon_20th_11.png');
+      if (hLeft) ctx.drawImage(hLeft, 60, f.headerHeight / 2 - 45, 90, 90);
+      if (hRight) ctx.drawImage(hRight, f.width - 150, f.headerHeight / 2 - 45, 90, 90);
+    } catch(e) {}
 
     // 2x2 Grid Layout Math
     const top = f.headerHeight + 20;
@@ -2272,6 +2561,14 @@
     ctx.textBaseline = 'middle';
     ctx.fillText(`${dateStr}  ·  ${CFG.brand?.completionMessage || '이천시민의 마음건강 20년, 언제나 함께합니다 ✨'}`, f.width / 2, footerY);
 
+    // [NEW] Draw Official Neouri Stickers on Footer
+    try {
+      const fLeft = await loadHtmlImage('/stickers/icheon_20th_04.png');
+      const fRight = await loadHtmlImage('/stickers/icheon_20th_05.png');
+      if (fLeft) ctx.drawImage(fLeft, f.width / 2 - 320, footerY - 35, 70, 70);
+      if (fRight) ctx.drawImage(fRight, f.width / 2 + 250, footerY - 35, 70, 70);
+    } catch(e) {}
+
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.94));
   }
 
@@ -2342,33 +2639,23 @@
           directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
         }
       } else {
-        // Failover: Try client-side direct CDN upload
+        // Failover: Try client-side direct CDN upload (Zero-login Android bypass via catbox.moe)
         let clientCdnUrl = null;
         try {
-          const reader = new FileReader();
-          const base64Promise = new Promise((resolve) => {
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(blob);
-          });
-          const b64 = await base64Promise;
           const cdnForm = new FormData();
-          cdnForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
-          cdnForm.append('action', 'upload');
-          cdnForm.append('source', b64);
-          cdnForm.append('format', 'json');
-          const cRes = await fetch('https://freeimage.host/api/1/upload', { method: 'POST', body: cdnForm });
+          cdnForm.append('reqtype', 'fileupload');
+          cdnForm.append('fileToUpload', blob, 'maeum-fourcuts.jpg');
+          const cRes = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: cdnForm });
           if (cRes.ok) {
-            const cData = await cRes.json();
-            clientCdnUrl = cData?.image?.url || null;
+            clientCdnUrl = (await cRes.text()).trim();
           }
         } catch (e) {
           console.warn('Client direct CDN upload error:', e);
         }
 
         const fallbackPhotoId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `photo-${Date.now()}`;
-        const targetUrl = clientCdnUrl
-          ? `${location.origin}/d/${fallbackPhotoId}#img=${encodeURIComponent(clientCdnUrl)}`
-          : location.origin;
+        // By setting the target directly to the image URL, we bypass Vercel Auth entirely for Android QR scans!
+        const targetUrl = clientCdnUrl ? clientCdnUrl : location.origin;
 
         if (window.QRCode && qrImg) {
           try {
@@ -2388,7 +2675,12 @@
         }
       }
 
-      show('result');
+      // Fast-Lane: Proceed to Dedicated Print Preview Screen (Section 23)
+      if (isFastLaneMode()) {
+        showPrintPreview();
+      } else {
+        show('result');
+      }
     } catch (err) {
       if (err.name !== 'AbortError' && run === state.runId) {
         console.error('Upload flow error:', err);
@@ -2400,6 +2692,143 @@
     }
   }
 
+  // ===================================================================
+  // FAST-LANE PRINT PREVIEW & PRINT QUEUE PROTECTION (SECTIONS 23 & 24)
+  // ===================================================================
+  function renderPrintSheetPreview() {
+    const canvas = $('#printSheetCanvas');
+    if (!canvas || !state.masterCardCanvas) return;
+
+    const sheetCanvas = composePrintSheetCanvas(state.masterCardCanvas, state.showCutGuides);
+    state.printSheetCanvas = sheetCanvas;
+
+    canvas.width = sheetCanvas.width;
+    canvas.height = sheetCanvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(sheetCanvas, 0, 0);
+  }
+
+  function showPrintPreview() {
+    state.printState = {
+      status: 'ready',
+      sessionId: state.runId,
+      lastPrintedAt: null
+    };
+
+    const confirmBtn = $('#printConfirmBtn');
+    const confirmBtnText = $('#printConfirmBtnText');
+    if (confirmBtn) confirmBtn.disabled = false;
+    if (confirmBtnText) confirmBtnText.textContent = '인쇄하기';
+
+    renderPrintSheetPreview();
+    show('preview');
+  }
+
+  async function handleConfirmPrint() {
+    // Print Queue Protection: Guard against double-tap or stale requests
+    if (state.printState.status !== 'ready') return;
+
+    state.printState.status = 'printing';
+    const confirmBtn = $('#printConfirmBtn');
+    const confirmBtnText = $('#printConfirmBtnText');
+    if (confirmBtn) confirmBtn.disabled = true;
+    if (confirmBtnText) confirmBtnText.textContent = '인쇄 중... 잠시만 기다려주세요 🖨️';
+
+    const currentSession = state.runId;
+
+    try {
+      // 1. Prepare dedicated 4-up full-bleed print container
+      const printArea = $('#printArea');
+      if (printArea && state.printSheetCanvas) {
+        printArea.replaceChildren();
+        const img = document.createElement('img');
+        img.src = state.printSheetCanvas.toDataURL('image/jpeg', 0.98);
+        img.alt = 'Canon SELPHY CP1200 인쇄용 4컷 시트';
+        printArea.appendChild(img);
+      }
+
+      showNotice('🖨️ 포토프린터 인쇄 대화상자를 준비합니다...');
+
+      await sleep(350);
+      if (state.runId !== currentSession) return;
+
+      // 2. Trigger browser print
+      window.print();
+
+      // 3. Mark printed and proceed to completion
+      state.printState.status = 'printed';
+      state.printState.lastPrintedAt = Date.now();
+
+      await sleep(600);
+      if (state.runId !== currentSession) return;
+
+      show('result');
+    } catch (err) {
+      console.warn('Print handoff error:', err);
+      if (state.runId === currentSession) {
+        state.printState.status = 'failed';
+        if (confirmBtn) confirmBtn.disabled = false;
+        if (confirmBtnText) confirmBtnText.textContent = '인쇄 다시 시도';
+        showNotice('인쇄 준비 중 문제가 발생했습니다. 다시 시도해 주세요.');
+      }
+    }
+  }
+
+  // Operator Geometry & Ratio Report Generator (Section 19)
+  function getGeometryReport() {
+    const pl = CFG.printLayout || {};
+    const sheet = pl.sheet || { width: 1200, height: 1776 };
+    const grid = pl.grid || { columns: 2, rows: 2, verticalGutter: 12, horizontalGutter: 12, outerSafeMargin: 18 };
+    const card = pl.card || { innerPadding: 18, photoGap: 8, headerRatio: 0.060, footerRatio: 0.075 };
+
+    const cardW = (sheet.width - grid.outerSafeMargin * 2 - (grid.columns - 1) * grid.verticalGutter) / grid.columns;
+    const cardH = (sheet.height - grid.outerSafeMargin * 2 - (grid.rows - 1) * grid.horizontalGutter) / grid.rows;
+    const slotRatio = getDerivedSlotAspectRatio();
+
+    return {
+      sheetDimensions: `${sheet.width} × ${sheet.height} px (100mm × 148mm 엽서 규격)`,
+      sheetRatio: `${(sheet.width / sheet.height).toFixed(4)}`,
+      gridConfiguration: `${grid.columns} 열 × ${grid.rows} 행 (총 4장 인쇄)`,
+      masterCardDimensions: `${cardW} × ${cardH} px`,
+      masterCardRatio: `${(cardW / cardH).toFixed(4)} (2 : 3 황금비율)`,
+      photoSlotAspectRatio: `${slotRatio.toFixed(4)}`,
+      safeMargins: `외곽 여백 ${grid.outerSafeMargin}px, 카드간격 ${grid.verticalGutter}px, 내부여백 ${card.innerPadding}px, 사진간격 ${card.photoGap}px`,
+      centerCutGuides: `수직 X: ${sheet.width / 2}px, 수평 Y: ${sheet.height / 2}px (2회 재단으로 4등분 분리)`
+    };
+  }
+
+  function showGeometryReportModal() {
+    const modal = $('#ratioReportModal');
+    const list = $('#geometryReportList');
+    if (!modal || !list) return;
+
+    const report = getGeometryReport();
+    list.replaceChildren();
+
+    const rows = [
+      { label: '용지 규격', value: report.sheetDimensions },
+      { label: '시트 비율', value: report.sheetRatio },
+      { label: '그리드 배치', value: report.gridConfiguration },
+      { label: '개별 카드 크기', value: report.masterCardDimensions },
+      { label: '개별 카드 비율', value: report.masterCardRatio },
+      { label: '사진 슬롯 가로세로비', value: report.photoSlotAspectRatio },
+      { label: '안전 여백 사양', value: report.safeMargins },
+      { label: '십자 재단선 좌표', value: report.centerCutGuides }
+    ];
+
+    rows.forEach((r) => {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'diag-status-row';
+      rowDiv.innerHTML = `
+        <span class="diag-label">${r.label}:</span>
+        <span class="diag-val">${r.value}</span>
+      `;
+      list.appendChild(rowDiv);
+    });
+
+    modal.removeAttribute('hidden');
+  }
+
   function setStage(num) {
     for (let i = 1; i <= 3; i++) {
       const el = $(`#stage${i}`);
@@ -2409,7 +2838,7 @@
     }
   }
 
-  // Complete Reset of Kiosk State
+  // Complete Reset of Kiosk State (Privacy & Security Safe Purge)
   function resetKiosk() {
     state.runId++;
     state.abortController?.abort();
@@ -2417,6 +2846,8 @@
     clearTimeout(state.idleTimer);
     clearTimeout(state.completionTimer);
     clearInterval(state.warningTimer);
+    clearTimeout(state.autoTransitionTimer);
+    clearTimeout(state.undoTimer);
 
     stopCamera();
     releaseShots();
@@ -2429,6 +2860,13 @@
     state.activePhotoId = null;
     state.activeStickerId = null;
     state.csrf = null;
+    state.selectionLocked = false;
+    state.masterCardCanvas = null;
+    state.printSheetCanvas = null;
+    state.printState = { status: 'idle', sessionId: 0, lastPrintedAt: null };
+
+    const autoBanner = $('#selectionAutoBanner');
+    if (autoBanner) autoBanner.hidden = true;
 
     if (window.filterClient) {
       window.filterClient.reset();
@@ -2460,6 +2898,18 @@
     if (pb) pb.hidden = true;
     const cb = $('#countdownBox');
     if (cb) cb.style.display = 'flex';
+
+    // Clear Print Sheet Canvas and Print Area
+    const sheetCanvas = $('#printSheetCanvas');
+    if (sheetCanvas) {
+      sheetCanvas.getContext('2d')?.clearRect(0, 0, sheetCanvas.width, sheetCanvas.height);
+      sheetCanvas.width = 1;
+      sheetCanvas.height = 1;
+    }
+    const printArea = $('#printArea');
+    if (printArea) printArea.replaceChildren();
+
+    renderProgressRail();
 
     // Clean quad preview canvases
     for (let i = 0; i < 4; i++) {
@@ -2697,6 +3147,32 @@
   });
   $('#finishBtn')?.addEventListener('click', executeCompletionWorkflow);
 
+  // Screen 4: Photo Selection Proceed CTA
+  $('#editBtn')?.addEventListener('click', () => {
+    if (isFastLaneMode()) {
+      executeCompletionWorkflow();
+    } else {
+      initFilterStage();
+      show('filter');
+    }
+  });
+
+  // Screen 5 (Fast-Lane): Dedicated Print Preview Screen Actions
+  $('#printConfirmBtn')?.addEventListener('click', handleConfirmPrint);
+  $('#printReselectBtn')?.addEventListener('click', () => {
+    undoSelection();
+    show('select');
+  });
+  $('#toggleCutGuidesCheckbox')?.addEventListener('change', (e) => {
+    state.showCutGuides = !!e.target.checked;
+    renderPrintSheetPreview();
+  });
+  $('#btnOperatorRatioReport')?.addEventListener('click', showGeometryReportModal);
+  $('#closeRatioReportBtn')?.addEventListener('click', () => {
+    $('#ratioReportModal')?.setAttribute('hidden', 'true');
+  });
+  $('#undoSelectionBtn')?.addEventListener('click', undoSelection);
+
   // Screen 6: Composing / Upload retry
   $('#uploadRetryBtn')?.addEventListener('click', executeCompletionWorkflow);
   $('#uploadCancelBtn')?.addEventListener('click', resetKiosk);
@@ -2847,5 +3323,6 @@
 
   // Startup
   applyBranding();
+  renderProgressRail();
   loadServerConfig();
 })();

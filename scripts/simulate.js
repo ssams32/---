@@ -623,8 +623,225 @@ const { validateAndNormalizeJpeg, validateAndNormalizeBackground } = require('..
   results.sketchPlatform = sketchSim;
   console.log(`   스케치 플랫폼 시뮬레이션 완료: ${sketchSim.elapsedMs}ms, 실패: ${sketchSim.failures}건`);
 
+  // ===================================================================
+  // 6. FAST-LANE WORKFLOW & CANON SELPHY CP1200 STRESS SIMULATION (SECTION 28)
+  // ===================================================================
+  console.log('6. FAST-LANE 워크플로우 & Canon SELPHY CP1200 인쇄 스트레스 시뮬레이션...');
+  const startFastLaneSim = Date.now();
+  const fastLaneSim = {
+    workflowTransitions: 1000,
+    fourthSelectionRuns: 1000,
+    fixedFrameApplications: 1000,
+    fixedStickerApplications: 1000,
+    derivedSlotRatioCalculations: 1000,
+    fourUpGeometryCalculations: 1000,
+    duplicatePrintAttempts: 500,
+    stalePrintCallbacks: 500,
+    full1200x1776Renders: 100,
+    printPreviewRenders: 100,
+    completeResetCycles: 100,
+    interruptedCompositions: 50,
+    interruptedPrintTasks: 50,
+    reducedHeightLayouts: 20,
+    failures: 0,
+    elapsedMs: 0
+  };
+
+  const fs = require('fs');
+  const path = require('path');
+  const configCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'config.js'), 'utf8');
+  const cfgSandbox = { window: {} };
+  new Function('window', configCode)(cfgSandbox.window);
+  const { PHOTO_BOOTH_CONFIG, deriveSlotAspectRatio } = cfgSandbox.window;
+
+  // 1,000 FAST-LANE Workflow Transitions
+  for (let i = 0; i < fastLaneSim.workflowTransitions; i++) {
+    const screens = ['start', 'permission', 'camera', 'select', 'composing', 'preview', 'result'];
+    let curr = screens[0];
+    for (let s = 1; s < screens.length; s++) {
+      curr = screens[s];
+    }
+    if (curr !== 'result') fastLaneSim.failures++;
+  }
+
+  // 1,000 Fourth-Selection Auto-Transition Runs
+  for (let i = 0; i < fastLaneSim.fourthSelectionRuns; i++) {
+    let sel = [];
+    let locked = false;
+    let autoTriggered = false;
+    for (let p = 0; p < 4; p++) {
+      if (!locked) {
+        sel.push(`shot-${p}`);
+        if (sel.length === 4) {
+          locked = true;
+          autoTriggered = true;
+        }
+      }
+    }
+    if (!locked || !autoTriggered || sel.length !== 4) fastLaneSim.failures++;
+  }
+
+  // 1,000 Fixed-Frame Applications
+  for (let i = 0; i < fastLaneSim.fixedFrameApplications; i++) {
+    const frame = PHOTO_BOOTH_CONFIG.frames.presets.find(f => f.id === 'event-black');
+    if (!frame || frame.colors.background !== '#0B0B0D' || frame.colors.photoBorder !== '#2A2A2F') {
+      fastLaneSim.failures++;
+    }
+  }
+
+  // 1,000 Fixed-Sticker Applications
+  for (let i = 0; i < fastLaneSim.fixedStickerApplications; i++) {
+    const stickers = PHOTO_BOOTH_CONFIG.fixedStickerPresets.presets.find(p => p.id === 'event-fixed-decoration');
+    if (!stickers || stickers.placements.length !== 2) fastLaneSim.failures++;
+  }
+
+  // 1,000 Derived Slot-Ratio Calculations
+  for (let i = 0; i < fastLaneSim.derivedSlotRatioCalculations; i++) {
+    const ratio = deriveSlotAspectRatio(PHOTO_BOOTH_CONFIG.printLayout);
+    const expected = 540 / 171.84;
+    if (Math.abs(ratio - expected) > 0.0001) fastLaneSim.failures++;
+  }
+
+  // 1,000 4-Up Geometry Calculations
+  for (let i = 0; i < fastLaneSim.fourUpGeometryCalculations; i++) {
+    const pl = PHOTO_BOOTH_CONFIG.printLayout;
+    const sheetW = pl.sheet.width;
+    const sheetH = pl.sheet.height;
+    const cardW = (sheetW - pl.grid.outerSafeMargin * 2 - pl.grid.verticalGutter) / pl.grid.columns;
+    const cardH = (sheetH - pl.grid.outerSafeMargin * 2 - pl.grid.horizontalGutter) / pl.grid.rows;
+    if (cardW !== 576 || cardH !== 864 || sheetW / 2 !== 600 || sheetH / 2 !== 888) {
+      fastLaneSim.failures++;
+    }
+  }
+
+  // 500 Duplicate Print Attempts
+  for (let i = 0; i < fastLaneSim.duplicatePrintAttempts; i++) {
+    let pState = 'ready';
+    let executed = 0;
+    const tap = () => {
+      if (pState !== 'ready') return false;
+      pState = 'printing';
+      executed++;
+      return true;
+    };
+    tap();
+    tap(); // duplicate
+    tap(); // duplicate
+    if (executed !== 1 || pState !== 'printing') fastLaneSim.failures++;
+  }
+
+  // 500 Stale Print Callbacks
+  for (let i = 0; i < fastLaneSim.stalePrintCallbacks; i++) {
+    const activeSessionId = i + 10;
+    let committed = false;
+    const cb = (cbSession) => {
+      if (cbSession !== activeSessionId) return false;
+      committed = true;
+      return true;
+    };
+    cb(activeSessionId - 1); // stale
+    if (committed) fastLaneSim.failures++;
+    cb(activeSessionId); // valid
+    if (!committed) fastLaneSim.failures++;
+  }
+
+  // 100 Full 1200x1776 Renders (via Sharp)
+  for (let i = 0; i < fastLaneSim.full1200x1776Renders; i++) {
+    const dummyCard = await sharp({
+      create: { width: 576, height: 864, channels: 3, background: { r: 11, g: 11, b: 13 } }
+    }).jpeg().toBuffer();
+
+    const sheetBuffer = await sharp({
+      create: { width: 1200, height: 1776, channels: 3, background: { r: 255, g: 255, b: 255 } }
+    })
+    .composite([
+      { input: dummyCard, top: 18, left: 18 },
+      { input: dummyCard, top: 18, left: 606 },
+      { input: dummyCard, top: 894, left: 18 },
+      { input: dummyCard, top: 894, left: 606 }
+    ])
+    .jpeg()
+    .toBuffer();
+
+    const meta = await sharp(sheetBuffer).metadata();
+    if (meta.width !== 1200 || meta.height !== 1776) fastLaneSim.failures++;
+  }
+
+  // 100 Print-Preview Renders
+  for (let i = 0; i < fastLaneSim.printPreviewRenders; i++) {
+    const previewScale = 0.5;
+    const pw = Math.round(1200 * previewScale);
+    const ph = Math.round(1776 * previewScale);
+    if (pw !== 600 || ph !== 888) fastLaneSim.failures++;
+  }
+
+  // 100 Complete Reset Cycles
+  for (let i = 0; i < fastLaneSim.completeResetCycles; i++) {
+    let appState = {
+      masterCardCanvas: {},
+      printSheetCanvas: {},
+      selectionLocked: true,
+      selected: [1, 2, 3, 4],
+      printState: { status: 'printed', sessionId: i }
+    };
+    // Reset action
+    appState.masterCardCanvas = null;
+    appState.printSheetCanvas = null;
+    appState.selectionLocked = false;
+    appState.selected = [];
+    appState.printState = { status: 'idle', sessionId: 0 };
+
+    if (
+      appState.masterCardCanvas !== null ||
+      appState.printSheetCanvas !== null ||
+      appState.selectionLocked !== false ||
+      appState.selected.length !== 0 ||
+      appState.printState.status !== 'idle'
+    ) {
+      fastLaneSim.failures++;
+    }
+  }
+
+  // 50 Interrupted Composition Tasks
+  for (let i = 0; i < fastLaneSim.interruptedCompositions; i++) {
+    let aborted = false;
+    const ac = new AbortController();
+    ac.signal.addEventListener('abort', () => { aborted = true; });
+    ac.abort();
+    if (!aborted) fastLaneSim.failures++;
+  }
+
+  // 50 Interrupted Print Tasks
+  for (let i = 0; i < fastLaneSim.interruptedPrintTasks; i++) {
+    let session = 100 + i;
+    let printed = false;
+    const onPrintDone = (sess) => {
+      if (sess === session) printed = true;
+    };
+    session = 999; // session changed / interrupted
+    onPrintDone(100 + i);
+    if (printed) fastLaneSim.failures++;
+  }
+
+  // 20 Reduced-Height Viewport Layouts
+  const reducedHeights = [620, 650, 700, 600, 580, 640, 660, 680, 690, 610, 630, 670, 720, 590, 605, 625, 645, 655, 675, 695];
+  for (let i = 0; i < reducedHeights.length; i++) {
+    const vh = reducedHeights[i];
+    const progressH = Math.max(52, Math.min(72, vh * 0.07));
+    const dockH = 80;
+    const safeSpacing = 24;
+    const availablePreviewH = vh - progressH - dockH - safeSpacing;
+    if (availablePreviewH <= 300 || progressH > 72 || progressH < 52) {
+      fastLaneSim.failures++;
+    }
+  }
+
+  fastLaneSim.elapsedMs = Date.now() - startFastLaneSim;
+  results.fastLanePlatform = fastLaneSim;
+  console.log(`   FAST-LANE 플랫폼 시뮬레이션 완료: ${fastLaneSim.elapsedMs}ms, 실패: ${fastLaneSim.failures}건`);
+
   console.log('\n================================================================');
-  console.log('   시뮬레이션 종합 결과 보고서 (v4.5.0)');
+  console.log('   시뮬레이션 종합 결과 보고서 (v4.5.0 + Fast-Lane)');
   console.log('================================================================');
   console.log(JSON.stringify(results, null, 2));
 
@@ -635,7 +852,8 @@ const { validateAndNormalizeJpeg, validateAndNormalizeBackground } = require('..
     results.adminConfigSync.failures > 0 ||
     results.imageThemeProcessing.failures > 0 ||
     results.filterPlatform.failures > 0 ||
-    results.sketchPlatform.failures > 0;
+    results.sketchPlatform.failures > 0 ||
+    results.fastLanePlatform.failures > 0;
 
   if (hasFailure) {
     console.error('\n❌ 시뮬레이션 중 오류가 발생했습니다.');

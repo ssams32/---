@@ -36,17 +36,180 @@ window.PHOTO_BOOTH_CONFIG = {
     focus: '#FFD43B'
   },
 
+  eventMode: {
+    mode: "fast-lane",
+
+    workflow: {
+      captureCount: 6,
+      selectionCount: 4,
+      enableParticipantFilterStep: false,
+      enableParticipantStickerStep: false,
+      enableFrameSelectionStep: false,
+      enableConfirmationStep: false,
+      proceedImmediatelyAfterSelection: true
+    },
+
+    fixedDesign: {
+      framePresetId: "event-black",
+      stickerPresetId: "event-fixed-decoration",
+      colorFilterPresetId: "original",
+      sketchEffectPresetId: null,
+
+      applyFrameAutomatically: true,
+      applyFixedStickersAutomatically: true,
+      applyFilterAutomatically: false,
+      applySketchAutomatically: false
+    },
+
+    timing: {
+      countdownSeconds: 3,
+      betweenShotsMs: 700,
+      selectionIdleWarningMs: 45000,
+      selectionAutoResetMs: 60000,
+      completionAutoResetMs: 45000,
+      finalResetWarningSeconds: 10
+    }
+  },
+
+  frames: {
+    defaultId: "event-black",
+
+    presets: [
+      {
+        id: "event-black",
+        label: "행사 블랙 프레임",
+
+        colors: {
+          background: "#0B0B0D",
+          photoBorder: "#2A2A2F",
+          primaryText: "#FFFFFF",
+          secondaryText: "#CFCFD4",
+          accent: "#FF4F87"
+        },
+
+        header: {
+          enabled: true,
+          text: "오늘의 마음 네컷",
+          heightRatio: 0.060,
+          fontWeight: 900
+        },
+
+        footer: {
+          enabled: true,
+          text: "당신의 오늘을 응원합니다",
+          heightRatio: 0.075,
+          fontWeight: 700
+        },
+
+        photo: {
+          cornerRadiusRatio: 0.012,
+          borderWidthRatio: 0.003,
+          gapRatio: 0.010
+        }
+      }
+    ]
+  },
+
+  fixedStickerPresets: {
+    defaultId: "event-fixed-decoration",
+
+    presets: [
+      {
+        id: "event-fixed-decoration",
+        label: "행사 기본 꾸미기",
+
+        placements: [
+          {
+            id: "top-sparkle",
+            type: "emoji",
+            value: "✨",
+            target: "card",
+            x: 0.90,
+            y: 0.045,
+            scale: 0.040,
+            rotation: -0.12,
+            opacity: 0.85
+          },
+          {
+            id: "bottom-heart",
+            type: "emoji",
+            value: "💜",
+            target: "card",
+            x: 0.08,
+            y: 0.952,
+            scale: 0.034,
+            rotation: 0.10,
+            opacity: 0.90
+          }
+        ]
+      }
+    ]
+  },
+
+  printLayout: {
+    printerProfile: "canon-selphy-cp1200-postcard-4up",
+
+    sheet: {
+      width: 1200,
+      height: 1776,
+      physicalWidthMm: 100,
+      physicalHeightMm: 148,
+      orientation: "portrait",
+      backgroundColor: "#FFFFFF"
+    },
+
+    grid: {
+      columns: 2,
+      rows: 2,
+      verticalGutter: 12,
+      horizontalGutter: 12,
+      outerSafeMargin: 18
+    },
+
+    card: {
+      copies: 4,
+      photoCount: 4,
+      photoDirection: "vertical",
+      innerPadding: 18,
+      photoGap: 8,
+      headerRatio: 0.060,
+      footerRatio: 0.075,
+      framePresetId: "event-black",
+      fixedStickerPresetId: "event-fixed-decoration"
+    },
+
+    cutGuide: {
+      visible: true,
+      color: "#B8B8B8",
+      opacity: 0.55,
+      width: 1,
+      dash: [8, 8]
+    },
+
+    export: {
+      mimeType: "image/jpeg",
+      quality: 0.95,
+      digitalFilename: "maeum-fourcuts-digital.jpg",
+      printFilename: "maeum-fourcuts-print-4up.jpg"
+    }
+  },
+
   capture: {
     count: 6,
     selectionCount: 4,
-    countdownSeconds: 5,
-    betweenShotsMs: 4000
+    countdownSeconds: 3,
+    betweenShotsMs: 700,
+    slotAspectRatioMode: "derive-from-print-layout",
+    explicitSlotAspectRatio: null,
+    sensorRequestAspectRatio: 4 / 3,
+    overscanHorizontal: 0.07,
+    overscanVertical: 0.10
   },
 
   timeouts: {
-    idleResetMs: 120000,
-    completionResetMs: 90000,
-    finalWarningSeconds: 15
+    idleResetMs: 60000,
+    completionResetMs: 45000,
+    finalWarningSeconds: 10
   },
 
   frame: {
@@ -239,6 +402,30 @@ window.PHOTO_BOOTH_CONFIG = {
   customBackgrounds: []
 };
 
+// Slot Aspect Ratio Derivation Helper (Canon SELPHY CP1200 Geometry)
+window.deriveSlotAspectRatio = function (layout) {
+  const p = layout || window.PHOTO_BOOTH_CONFIG?.printLayout;
+  if (!p) return 4 / 3;
+  const grid = p.grid || { columns: 2, rows: 2, verticalGutter: 12, horizontalGutter: 12, outerSafeMargin: 18 };
+  const sheet = p.sheet || { width: 1200, height: 1776 };
+  const card = p.card || { innerPadding: 18, photoGap: 8, headerRatio: 0.060, footerRatio: 0.075, photoCount: 4 };
+
+  const masterCardWidth = (sheet.width - (grid.outerSafeMargin * 2) - ((grid.columns - 1) * grid.verticalGutter)) / grid.columns;
+  const masterCardHeight = (sheet.height - (grid.outerSafeMargin * 2) - ((grid.rows - 1) * grid.horizontalGutter)) / grid.rows;
+
+  const headerHeight = masterCardHeight * (card.headerRatio || 0.060);
+  const footerHeight = masterCardHeight * (card.footerRatio || 0.075);
+  const innerPadding = card.innerPadding || 18;
+  const photoGap = card.photoGap || 8;
+  const photoCount = card.photoCount || 4;
+
+  const photoContentHeight = masterCardHeight - headerHeight - footerHeight - (innerPadding * 2) - ((photoCount - 1) * photoGap);
+  const photoSlotHeight = photoContentHeight / photoCount;
+  const photoSlotWidth = masterCardWidth - (innerPadding * 2);
+
+  return photoSlotWidth / photoSlotHeight;
+};
+
 // Config validation helper
 window.validateBoothConfig = function (cfg) {
   const errors = [];
@@ -255,5 +442,58 @@ window.validateBoothConfig = function (cfg) {
   if (!Array.isArray(cfg.stickers?.items) || cfg.stickers.items.length === 0) {
     errors.push('stickers.items must be a non-empty array');
   }
+
+  // FAST-LANE Validation
+  if (cfg.eventMode) {
+    const validModes = ['fast-lane', 'standard'];
+    if (!validModes.includes(cfg.eventMode.mode)) {
+      errors.push('eventMode.mode must be "fast-lane" or "standard"');
+    }
+    const wf = cfg.eventMode.workflow;
+    if (!wf || typeof wf.captureCount !== 'number' || wf.captureCount < 4) {
+      errors.push('eventMode.workflow.captureCount must be a number >= 4');
+    }
+    if (!wf || typeof wf.selectionCount !== 'number' || wf.selectionCount !== 4) {
+      errors.push('eventMode.workflow.selectionCount must be 4');
+    }
+  }
+
+  // Frames validation
+  if (cfg.frames) {
+    if (!cfg.frames.defaultId) errors.push('frames.defaultId is required');
+    if (!Array.isArray(cfg.frames.presets) || cfg.frames.presets.length === 0) {
+      errors.push('frames.presets must be a non-empty array');
+    } else {
+      const hasBlack = cfg.frames.presets.some((f) => f.id === 'event-black');
+      if (!hasBlack) errors.push('frames.presets must contain "event-black"');
+    }
+  }
+
+  // Fixed Stickers validation
+  if (cfg.fixedStickerPresets) {
+    if (!cfg.fixedStickerPresets.defaultId) errors.push('fixedStickerPresets.defaultId is required');
+    if (!Array.isArray(cfg.fixedStickerPresets.presets) || cfg.fixedStickerPresets.presets.length === 0) {
+      errors.push('fixedStickerPresets.presets must be a non-empty array');
+    } else {
+      const hasDeco = cfg.fixedStickerPresets.presets.some((s) => s.id === 'event-fixed-decoration');
+      if (!hasDeco) errors.push('fixedStickerPresets.presets must contain "event-fixed-decoration"');
+    }
+  }
+
+  // Print layout validation
+  if (cfg.printLayout) {
+    const pl = cfg.printLayout;
+    if (!pl.sheet?.width || !pl.sheet?.height) errors.push('printLayout.sheet dimensions required');
+    if (pl.sheet?.width !== 1200 || pl.sheet?.height !== 1776) {
+      errors.push('printLayout.sheet must be 1200x1776 for Canon SELPHY CP1200 postcard profile');
+    }
+    if (pl.grid?.columns !== 2 || pl.grid?.rows !== 2) {
+      errors.push('printLayout.grid must be 2x2 for 4-up postcard');
+    }
+    if (pl.card?.copies !== 4 || pl.card?.photoCount !== 4) {
+      errors.push('printLayout.card must define 4 copies of 4 photos');
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 };
