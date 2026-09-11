@@ -35,13 +35,15 @@
       if (!AudioCtx) return;
       if (!window.__boothAudioCtx) window.__boothAudioCtx = new AudioCtx();
       const ctx = window.__boothAudioCtx;
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
       gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + duration);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
@@ -83,6 +85,7 @@
     warningTimer: null,
     abortController: null,
     isShooting: false,
+    isInitializingCamera: false,
     shutterResolve: null,
 
     // FAST-LANE State Extensions
@@ -278,140 +281,160 @@
 
   // Camera Ready & Initialization Flow
   async function initializeCamera() {
-    if (state.isShooting) return;
-    $('#cameraErrorBox')?.setAttribute('hidden', 'true');
-    stopCamera();
-    const run = ++state.runId;
+    if (state.isShooting || state.isInitializingCamera) return;
+    state.isInitializingCamera = true;
+    try {
+      $('#cameraErrorBox')?.setAttribute('hidden', 'true');
+      stopCamera();
+      const run = ++state.runId;
 
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      showNotice('카메라를 사용할 수 없어 샘플 사진 모드로 시작합니다.');
-      await sleep(500);
-      generateDemoShots();
-      return;
-    }
-
-    // Progressive constraint fallback list:
-    // 1) High-res wide (ideal 1080p/4:3 native)
-    // 2) Standard 720p front
-    // 3) Front camera without resolution constraints
-    // 4) Any available video device
-    const constraintList = [
-      {
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1920 },
-          height: { ideal: 1440 }
-        },
-        audio: false
-      },
-      {
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      },
-      {
-        video: {
-          facingMode: 'user'
-        },
-        audio: false
-      },
-      {
-        video: true,
-        audio: false
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        showNotice('카메라를 사용할 수 없어 샘플 사진 모드로 시작합니다.');
+        await sleep(500);
+        generateDemoShots();
+        return;
       }
-    ];
 
-    let stream = null;
-    let lastError = null;
+      // Progressive constraint fallback list:
+      // 1) High-res wide (ideal 1080p/4:3 native)
+      // 2) Standard 720p front
+      // 3) Front camera without resolution constraints
+      // 4) Any available video device
+      const constraintList = [
+        {
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1920 },
+            height: { ideal: 1440 }
+          },
+          audio: false
+        },
+        {
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        },
+        {
+          video: {
+            facingMode: 'user'
+          },
+          audio: false
+        },
+        {
+          video: true,
+          audio: false
+        }
+      ];
 
-    for (const constraints of constraintList) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (stream) break;
-      } catch (err) {
-        lastError = err;
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          break; // User explicitly denied, no need to cycle further
+      let stream = null;
+      let lastError = null;
+
+      for (const constraints of constraintList) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (err) {
+          lastError = err;
+          if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            break; // User explicitly denied, no need to cycle further
+          }
         }
       }
-    }
 
-    if (!stream) {
-      console.warn('Camera access denied or failed across all constraints:', lastError);
-      const errBox = $('#cameraErrorBox');
-      if (errBox) {
-        errBox.removeAttribute('hidden');
-        errBox.innerHTML = `
-          <strong>카메라를 켤 수 없습니다 (${lastError?.name || '오류'})</strong><br>
-          ${lastError?.name === 'NotAllowedError'
-            ? '브라우저 주소창 좌측 카메라 권한을 허용한 뒤 다시 시도해 주세요.'
-            : '카메라 장치 연결 및 브라우저 권한을 확인해 주세요.'}<br>
-          <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-            <button type="button" class="btn-kiosk-primary" id="retryCameraBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">다시 시도</button>
-            <button type="button" class="btn-kiosk-secondary" id="fallbackDemoBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">샘플 모드로 진행</button>
-          </div>
-        `;
-        $('#retryCameraBtn')?.addEventListener('click', initializeCamera);
-        $('#fallbackDemoBtn')?.addEventListener('click', () => {
-          showNotice('샘플 사진 모드로 진행합니다.');
-          generateDemoShots();
-        });
+      if (!stream) {
+        console.warn('Camera access denied or failed across all constraints:', lastError);
+        const errBox = $('#cameraErrorBox');
+        if (errBox) {
+          errBox.removeAttribute('hidden');
+          errBox.innerHTML = `
+            <strong>카메라를 켤 수 없습니다 (${lastError?.name || '오류'})</strong><br>
+            ${lastError?.name === 'NotAllowedError'
+              ? '브라우저 주소창 좌측 카메라 권한을 허용한 뒤 다시 시도해 주세요.'
+              : '카메라 장치 연결 및 브라우저 권한을 확인해 주세요.'}<br>
+            <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <button type="button" class="btn-kiosk-primary" id="retryCameraBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">다시 시도</button>
+              <button type="button" class="btn-kiosk-secondary" id="fallbackDemoBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">샘플 모드로 진행</button>
+            </div>
+          `;
+          $('#retryCameraBtn')?.addEventListener('click', initializeCamera);
+          $('#fallbackDemoBtn')?.addEventListener('click', () => {
+            showNotice('샘플 사진 모드로 진행합니다.');
+            generateDemoShots();
+          });
+        }
+        return;
       }
-      return;
+
+      if (run !== state.runId) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      state.stream = stream;
+      const video = $('#video');
+      if (!video) {
+        console.error('Video element not found');
+        return;
+      }
+
+      // Explicit properties for iOS Safari & Chrome autoplay compatibility
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('muted', '');
+      video.srcObject = stream;
+
+      // Show camera stage immediately so element has active DOM layout
+      show('camera');
+      renderCameraFilterTray();
+      updateLiveCameraFilter();
+
+      // Ensure ratio toggle button matches Fast-Lane mode
+      const ratioBtn = $('#ratioToggleBtn');
+      if (ratioBtn) {
+        ratioBtn.style.display = isFastLaneMode() ? 'none' : 'flex';
+      }
+
+      // Fast, non-blocking video play with 300ms timeout race
+      try {
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          await Promise.race([
+            playPromise.catch((playErr) => console.warn('video.play notification:', playErr)),
+            sleep(300)
+          ]);
+        }
+      } catch (playErr) {
+        console.warn('video.play() auto-playback notification:', playErr);
+      }
+
+      // Ensure dimensions ready without long stalling (capped at 250ms)
+      if (!video.videoWidth || video.videoWidth === 0) {
+        await Promise.race([
+          new Promise((resolve) => {
+            if (video.videoWidth > 0) return resolve();
+            const onReady = () => {
+              video.removeEventListener('loadedmetadata', onReady);
+              video.removeEventListener('canplay', onReady);
+              video.removeEventListener('playing', onReady);
+              resolve();
+            };
+            video.addEventListener('loadedmetadata', onReady);
+            video.addEventListener('canplay', onReady);
+            video.addEventListener('playing', onReady);
+          }),
+          sleep(250)
+        ]);
+      }
+
+      state.isInitializingCamera = false;
+      await startShootingSequence();
+    } finally {
+      state.isInitializingCamera = false;
     }
-
-    if (run !== state.runId) {
-      stream.getTracks().forEach((t) => t.stop());
-      return;
-    }
-
-    state.stream = stream;
-    const video = $('#video');
-    if (!video) {
-      console.error('Video element not found');
-      return;
-    }
-
-    // Explicit properties for iOS Safari & Chrome autoplay compatibility
-    video.muted = true;
-    video.playsInline = true;
-    video.setAttribute('playsinline', '');
-    video.setAttribute('muted', '');
-    video.srcObject = stream;
-
-    // Show camera stage immediately so element has active DOM layout
-    show('camera');
-    renderCameraFilterTray();
-    updateLiveCameraFilter();
-
-    try {
-      await video.play();
-    } catch (playErr) {
-      console.warn('video.play() auto-playback notification:', playErr);
-    }
-
-    // Ensure dimensions ready without long stalling (capped at 400ms)
-    if (!video.videoWidth || video.videoWidth === 0) {
-      await new Promise((resolve) => {
-        if (video.videoWidth > 0) return resolve();
-        const tm = setTimeout(resolve, 400);
-        const onReady = () => {
-          clearTimeout(tm);
-          video.removeEventListener('loadedmetadata', onReady);
-          video.removeEventListener('canplay', onReady);
-          video.removeEventListener('playing', onReady);
-          resolve();
-        };
-        video.addEventListener('loadedmetadata', onReady);
-        video.addEventListener('canplay', onReady);
-        video.addEventListener('playing', onReady);
-      });
-    }
-
-    startShootingSequence();
   }
 
   // High-Resolution Snapshot Capture: Matches EXACT viewfinder visible FOV (Zero Distortion, Zero Surprises)
@@ -433,7 +456,7 @@
     const displayAspect = (dispW && dispH) ? (dispW / dispH) : (vw / vh);
 
     const w = 1200;
-    const h = Math.round(w / (displayAspect || (4 / 3)));
+    const h = Math.round(w / (displayAspect || (4 / 3))) || 900;
     canvas.width = w;
     canvas.height = h;
 
@@ -453,10 +476,10 @@
     }
 
     // Guard bounds against NaN or out of bounds
-    sx = Math.max(0, Math.min(vw - 1, Math.round(sx)));
-    sy = Math.max(0, Math.min(vh - 1, Math.round(sy)));
-    sw = Math.max(1, Math.min(vw - sx, Math.round(sw)));
-    sh = Math.max(1, Math.min(vh - sy, Math.round(sh)));
+    sx = Math.max(0, Math.min(vw - 1, Math.round(sx || 0)));
+    sy = Math.max(0, Math.min(vh - 1, Math.round(sy || 0)));
+    sw = Math.max(1, Math.min(vw - sx, Math.round(sw || w)));
+    sh = Math.max(1, Math.min(vh - sy, Math.round(sh || h)));
 
     ctx.save();
     ctx.translate(w, 0);
@@ -475,33 +498,71 @@
     }
     ctx.restore();
 
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('사진 생성 실패'));
-      }, 'image/jpeg', 0.95);
+    return new Promise((resolve) => {
+      let resolved = false;
+      const tm = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          fetch(dataUrl).then((r) => r.blob()).then(resolve).catch(() => resolve(null));
+        } catch {
+          resolve(null);
+        }
+      }, 500);
+
+      try {
+        canvas.toBlob((blob) => {
+          if (resolved) return;
+          resolved = true;
+          clearTimeout(tm);
+          if (blob) {
+            resolve(blob);
+          } else {
+            try {
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+              fetch(dataUrl).then((r) => r.blob()).then(resolve).catch(() => resolve(null));
+            } catch {
+              resolve(null);
+            }
+          }
+        }, 'image/jpeg', 0.92);
+      } catch {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(tm);
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          fetch(dataUrl).then((r) => r.blob()).then(resolve).catch(() => resolve(null));
+        } catch {
+          resolve(null);
+        }
+      }
     });
   }
 
   function getDerivedSlotAspectRatio() {
+    if (isFastLaneMode()) {
+      return 3 / 2; // Canon SELPHY CP1200 3:2 (100mm x 148mm) Postcard Standard
+    }
     if (CFG.capture?.slotAspectRatioMode === 'explicit' && CFG.capture?.explicitSlotAspectRatio) {
       return Number(CFG.capture.explicitSlotAspectRatio);
     }
     if (typeof window.deriveSlotAspectRatio === 'function') {
       return window.deriveSlotAspectRatio(CFG.printLayout);
     }
-    return 540 / 171.84;
+    return 3 / 2;
   }
 
   function updateCameraCropGuide() {
     const cropBox = $('#cropSafeBox');
     if (!cropBox) return;
-    const slotRatio = getDerivedSlotAspectRatio();
-    cropBox.style.aspectRatio = String(slotRatio);
+    cropBox.style.aspectRatio = '3 / 2';
   }
 
   // Automated 6-Shot Shooting Sequence with Manual Shutter Support
   async function startShootingSequence() {
+    if (state.isShooting) return;
     const run = state.runId;
     state.isShooting = true;
     releaseShots();
@@ -529,7 +590,10 @@
       if (poseText) poseText.textContent = title;
       if (poseSub) poseSub.textContent = sub;
       if (poseBanner) poseBanner.hidden = false;
-      if (cdBox) cdBox.style.display = 'none';
+      if (cdBox) {
+        cdBox.style.display = 'none';
+        cdBox.classList.add('is-hidden');
+      }
     };
 
     const hidePoseBanner = () => {
@@ -537,13 +601,17 @@
     };
 
     // Ensure countdown box starts hidden
-    if (cdBox) cdBox.style.display = 'none';
+    if (cdBox) {
+      cdBox.style.display = 'none';
+      cdBox.classList.add('is-hidden');
+    }
+    if (cdEl) cdEl.textContent = '';
 
     try {
-      // Quick, gentle initial preparation cue for 1st shot (450ms)
+      // First shot gentle preparation cue (400ms)
       showPoseBanner('PHOTO 1 / ' + totalShots, '촬영 준비! 카메라를 봐주세요 📸', `${countdownSec}초 카운트다운 후 첫 번째 사진이 촬영됩니다`);
       playBeep(660, 0.12);
-      await sleep(450);
+      await sleep(400);
       if (run !== state.runId) return;
       hidePoseBanner();
 
@@ -557,9 +625,13 @@
         if (shotCountEl) shotCountEl.textContent = String(i + 1);
         updateShotTrack(i, totalShots);
 
-        // Countdown: 3, 2, 1 (Instant shutter responsive)
+        // Countdown: 3, 2, 1
         state.skipCountdown = false;
-        if (cdBox) cdBox.style.display = 'flex';
+        if (cdBox) {
+          cdBox.style.display = 'flex';
+          cdBox.classList.remove('is-hidden');
+        }
+
         for (let sec = countdownSec; sec >= 1; sec--) {
           if (run !== state.runId) return;
           if (state.skipCountdown) break;
@@ -570,13 +642,17 @@
             void cdEl.offsetWidth;
             cdEl.classList.add('pulse');
           }
-          if (sec <= 3) playBeep(880, 0.08);
+          playBeep(880, 0.08);
 
           // Responsive 1000ms tick that wakes immediately if manual shutter button or screen is tapped
           await new Promise((resolve) => {
-            let tm = setTimeout(resolve, 1000);
+            const tm = setTimeout(() => {
+              state.shutterResolve = null;
+              resolve();
+            }, 1000);
             state.shutterResolve = () => {
               clearTimeout(tm);
+              state.shutterResolve = null;
               resolve();
             };
           });
@@ -594,14 +670,19 @@
         }
 
         playBeep(1320, 0.18);
-        if (cdEl) cdEl.textContent = '찰칵! 📸';
+        if (cdEl) {
+          cdEl.textContent = '📸';
+          cdEl.classList.add('pulse');
+        }
 
         const blob = await captureVideoBlob();
-        state.shots.push({ id: uid(), blob, url: URL.createObjectURL(blob) });
+        if (blob) {
+          state.shots.push({ id: uid(), blob, url: URL.createObjectURL(blob) });
+        }
 
         // Breathing interval for pose change before next shot
         if (i < totalShots - 1) {
-          await sleep(600);
+          await sleep(500);
           if (run !== state.runId) return;
 
           const nextShotNum = i + 2;
@@ -611,13 +692,17 @@
             '자유롭게 포즈와 표정을 바꿔보세요'
           );
           playBeep(700, 0.1);
-          await sleep(Math.max(1200, betweenMs));
+          await sleep(Math.max(1000, betweenMs));
         } else {
-          await sleep(600);
+          await sleep(500);
         }
       }
 
       hidePoseBanner();
+      if (cdBox) {
+        cdBox.style.display = 'none';
+        cdBox.classList.add('is-hidden');
+      }
       state.isShooting = false;
       stopCamera();
       renderPhotoSelectionGrid();
@@ -2936,7 +3021,12 @@
     const pb = $('#poseNoticeBanner');
     if (pb) pb.hidden = true;
     const cb = $('#countdownBox');
-    if (cb) cb.style.display = 'flex';
+    if (cb) {
+      cb.style.display = 'none';
+      cb.classList.add('is-hidden');
+    }
+    const cd = $('#countdown');
+    if (cd) cd.textContent = '';
 
     // Clear Print Sheet Canvas and Print Area
     const sheetCanvas = $('#printSheetCanvas');

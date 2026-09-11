@@ -1100,7 +1100,7 @@ main#app {
   border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
-  border: 2px solid rgba(255, 255, 255, 0.16);
+  border: none;
   box-shadow: var(--shadow-deep);
   display: flex;
   align-items: center;
@@ -1173,19 +1173,10 @@ main#app {
   transform: scale(0.96);
 }
 
-/* Viewfinder Corner Framing Guides */
+/* Viewfinder Corner Framing Guides (Disabled - Single Crop Guide Used) */
 .vf-corner {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  border-color: rgba(255, 255, 255, 0.4);
-  border-style: solid;
-  pointer-events: none;
+  display: none !important;
 }
-.vf-corner.top-left { top: 24px; left: 24px; border-width: 4px 0 0 4px; border-top-left-radius: 8px; }
-.vf-corner.top-right { top: 24px; right: 24px; border-width: 4px 4px 0 0; border-top-right-radius: 8px; }
-.vf-corner.bottom-left { bottom: 24px; left: 24px; border-width: 0 0 4px 4px; border-bottom-left-radius: 8px; }
-.vf-corner.bottom-right { bottom: 24px; right: 24px; border-width: 0 4px 4px 0; border-bottom-right-radius: 8px; }
 
 /* 160ms Capture Flash */
 #flash {
@@ -1256,7 +1247,7 @@ main#app {
   min-height: 72px;
   padding: 8px 18px;
   border-radius: var(--radius-pill);
-  background: rgba(23, 20, 29, 0.72);
+  background: rgba(23, 20, 29, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 2.5px solid var(--color-brand-yellow, #FFC93C);
@@ -1268,6 +1259,16 @@ main#app {
   transition: transform 0.15s ease, background 0.2s ease;
 }
 
+.countdown-huge-wrapper.is-hidden {
+  display: none !important;
+}
+
+@keyframes cdPulse {
+  0% { transform: scale(1.4); opacity: 0.7; }
+  50% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 #countdown {
   font-size: clamp(34px, 5.2vw, 48px);
   font-weight: var(--font-weight-black);
@@ -1276,6 +1277,11 @@ main#app {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+#countdown.pulse {
+  display: inline-block;
+  animation: cdPulse 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* Dedicated Pose Guidance Toast Banner (Floating, Wide, High-Contrast Frosted Glass) */
@@ -4408,24 +4414,24 @@ main#app {
   position: relative;
   width: min(92%, 760px);
   aspect-ratio: 3 / 2; /* Canon SELPHY CP1200 3:2 (100mm x 148mm) Postcard Standard */
-  max-height: 75%;
-  border: 2.5px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
-  border-radius: 12px;
+  max-height: 78%;
+  border: 2.5px solid #FFC93C;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.42);
+  border-radius: 14px;
   transition: all 0.25s ease;
 }
 
 .crop-safe-box .crop-corner {
   position: absolute;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   border-color: #FFC93C;
   border-style: solid;
 }
-.crop-safe-box .crop-corner.top-left { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 6px; }
-.crop-safe-box .crop-corner.top-right { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 6px; }
-.crop-safe-box .crop-corner.bottom-left { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 6px; }
-.crop-safe-box .crop-corner.bottom-right { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 6px; }
+.crop-safe-box .crop-corner.top-left { top: -3px; left: -3px; border-width: 4px 0 0 4px; border-top-left-radius: 8px; }
+.crop-safe-box .crop-corner.top-right { top: -3px; right: -3px; border-width: 4px 4px 0 0; border-top-right-radius: 8px; }
+.crop-safe-box .crop-corner.bottom-left { bottom: -3px; left: -3px; border-width: 0 0 4px 4px; border-bottom-left-radius: 8px; }
+.crop-safe-box .crop-corner.bottom-right { bottom: -3px; right: -3px; border-width: 0 4px 4px 0; border-bottom-right-radius: 8px; }
 
 .crop-guide-tag {
   position: absolute;
