@@ -82,6 +82,8 @@
     completionTimer: null,
     warningTimer: null,
     abortController: null,
+    isShooting: false,
+    shutterResolve: null,
 
     // FAST-LANE State Extensions
     selectionLocked: false,
@@ -221,6 +223,8 @@
 
   // MediaStream Management
   function stopCamera() {
+    state.isShooting = false;
+    state.shutterResolve = null;
     if (state.stream) {
       state.stream.getTracks().forEach((track) => track.stop());
       state.stream = null;
@@ -261,9 +265,20 @@
     if (tray) tray.replaceChildren();
   }
 
-  // Camera Ready & Initialization Flow
+  // Trigger Immediate Shutter Snapshot (bypasses remaining countdown cleanly)
+  function triggerImmediateCapture() {
+    if (state.phase !== 'camera' || !state.isShooting) return;
+    state.skipCountdown = true;
+    if (typeof state.shutterResolve === 'function') {
+      const resolve = state.shutterResolve;
+      state.shutterResolve = null;
+      resolve();
+    }
+  }
+
   // Camera Ready & Initialization Flow
   async function initializeCamera() {
+    if (state.isShooting) return;
     $('#cameraErrorBox')?.setAttribute('hidden', 'true');
     stopCamera();
     const run = ++state.runId;
@@ -378,11 +393,11 @@
       console.warn('video.play() auto-playback notification:', playErr);
     }
 
-    // Ensure dimensions ready without hanging indefinitely
+    // Ensure dimensions ready without long stalling (capped at 400ms)
     if (!video.videoWidth || video.videoWidth === 0) {
       await new Promise((resolve) => {
         if (video.videoWidth > 0) return resolve();
-        const tm = setTimeout(resolve, 2500);
+        const tm = setTimeout(resolve, 400);
         const onReady = () => {
           clearTimeout(tm);
           video.removeEventListener('loadedmetadata', onReady);
@@ -488,6 +503,7 @@
   // Automated 6-Shot Shooting Sequence with Manual Shutter Support
   async function startShootingSequence() {
     const run = state.runId;
+    state.isShooting = true;
     releaseShots();
     state.selected = [];
     state.stickers.clear();
@@ -524,10 +540,10 @@
     if (cdBox) cdBox.style.display = 'none';
 
     try {
-      // Gentle initial preparation cue for 1st shot
+      // Quick, gentle initial preparation cue for 1st shot (450ms)
       showPoseBanner('PHOTO 1 / ' + totalShots, '촬영 준비! 카메라를 봐주세요 📸', `${countdownSec}초 카운트다운 후 첫 번째 사진이 촬영됩니다`);
       playBeep(660, 0.12);
-      await sleep(1400);
+      await sleep(450);
       if (run !== state.runId) return;
       hidePoseBanner();
 
@@ -541,7 +557,7 @@
         if (shotCountEl) shotCountEl.textContent = String(i + 1);
         updateShotTrack(i, totalShots);
 
-        // Countdown: 3, 2, 1
+        // Countdown: 3, 2, 1 (Instant shutter responsive)
         state.skipCountdown = false;
         if (cdBox) cdBox.style.display = 'flex';
         for (let sec = countdownSec; sec >= 1; sec--) {
@@ -555,7 +571,15 @@
             cdEl.classList.add('pulse');
           }
           if (sec <= 3) playBeep(880, 0.08);
-          await sleep(1000);
+
+          // Responsive 1000ms tick that wakes immediately if manual shutter button or screen is tapped
+          await new Promise((resolve) => {
+            let tm = setTimeout(resolve, 1000);
+            state.shutterResolve = () => {
+              clearTimeout(tm);
+              resolve();
+            };
+          });
         }
 
         if (run !== state.runId) return;
@@ -575,9 +599,9 @@
         const blob = await captureVideoBlob();
         state.shots.push({ id: uid(), blob, url: URL.createObjectURL(blob) });
 
-        // Breathing interval for pose change before next shot (total betweenMs = 4000ms)
+        // Breathing interval for pose change before next shot
         if (i < totalShots - 1) {
-          await sleep(900);
+          await sleep(600);
           if (run !== state.runId) return;
 
           const nextShotNum = i + 2;
@@ -587,17 +611,19 @@
             '자유롭게 포즈와 표정을 바꿔보세요'
           );
           playBeep(700, 0.1);
-          await sleep(Math.max(1500, betweenMs - 900));
+          await sleep(Math.max(1200, betweenMs));
         } else {
-          await sleep(800);
+          await sleep(600);
         }
       }
 
       hidePoseBanner();
+      state.isShooting = false;
       stopCamera();
       renderPhotoSelectionGrid();
       show('select');
     } catch (e) {
+      state.isShooting = false;
       console.error('Shooting error detail:', e);
       if (run === state.runId) {
         showNotice(`촬영 중 문제가 발생하여 처음 화면으로 이동합니다: ${e?.message || '오류'}`);
@@ -3002,8 +3028,13 @@
   $('#permissionCancelBtn')?.addEventListener('click', () => show('start'));
 
   // Screen 3: Camera
-  $('#manualShutterBtn')?.addEventListener('click', () => {
-    state.skipCountdown = true;
+  $('#manualShutterBtn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    triggerImmediateCapture();
+  });
+  $('#viewfinderFrame')?.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    triggerImmediateCapture();
   });
   $('#cancelShootBtn')?.addEventListener('click', () => {
     stopCamera();
