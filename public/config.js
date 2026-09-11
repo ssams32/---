@@ -199,8 +199,8 @@ window.PHOTO_BOOTH_CONFIG = {
     selectionCount: 4,
     countdownSeconds: 3,
     betweenShotsMs: 700,
-    slotAspectRatioMode: "derive-from-print-layout",
-    explicitSlotAspectRatio: null,
+    slotAspectRatioMode: "explicit",
+    explicitSlotAspectRatio: 1.5,
     sensorRequestAspectRatio: 4 / 3,
     overscanHorizontal: 0.07,
     overscanVertical: 0.10

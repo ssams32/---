@@ -2698,18 +2698,25 @@ main#app {
   }
   .countdown-huge-wrapper {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 130px;
-    height: 130px;
-    background: rgba(255, 201, 60, 0.95);
-    box-shadow: 0 8px 36px rgba(0, 0, 0, 0.6);
+    top: 20px;
+    right: 20px;
+    left: auto;
+    transform: none;
+    min-width: 60px;
+    min-height: 60px;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    background: rgba(23, 20, 29, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 2px solid #FFC93C;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
     z-index: 45;
   }
   #countdown {
-    font-size: 90px;
-    color: #17141D;
+    font-size: 42px;
+    font-weight: 900;
+    color: #FFC93C;
   }
   .camera-status-pane {
     flex: 0 0 72px;
@@ -4399,12 +4406,12 @@ main#app {
 
 .crop-safe-box {
   position: relative;
-  width: 88%;
-  aspect-ratio: 540 / 171.84; /* ~3.1425 derived from Canon SELPHY 4-up postcard geometry */
-  max-height: 60%;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.42);
-  border-radius: 8px;
+  width: min(92%, 760px);
+  aspect-ratio: 3 / 2; /* Canon SELPHY CP1200 3:2 (100mm x 148mm) Postcard Standard */
+  max-height: 75%;
+  border: 2.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.28);
+  border-radius: 12px;
   transition: all 0.25s ease;
 }
 

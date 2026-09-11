@@ -518,14 +518,16 @@
 
     const hidePoseBanner = () => {
       if (poseBanner) poseBanner.hidden = true;
-      if (cdBox) cdBox.style.display = 'flex';
     };
+
+    // Ensure countdown box starts hidden
+    if (cdBox) cdBox.style.display = 'none';
 
     try {
       // Gentle initial preparation cue for 1st shot
       showPoseBanner('PHOTO 1 / ' + totalShots, '촬영 준비! 카메라를 봐주세요 📸', `${countdownSec}초 카운트다운 후 첫 번째 사진이 촬영됩니다`);
       playBeep(660, 0.12);
-      await sleep(1500);
+      await sleep(1400);
       if (run !== state.runId) return;
       hidePoseBanner();
 
@@ -539,8 +541,9 @@
         if (shotCountEl) shotCountEl.textContent = String(i + 1);
         updateShotTrack(i, totalShots);
 
-        // Countdown 5, 4, 3, 2, 1
+        // Countdown: 3, 2, 1
         state.skipCountdown = false;
+        if (cdBox) cdBox.style.display = 'flex';
         for (let sec = countdownSec; sec >= 1; sec--) {
           if (run !== state.runId) return;
           if (state.skipCountdown) break;
@@ -2960,11 +2963,20 @@
   // GLOBAL EVENT BINDINGS
   // ===================================================================
   // Screen 1: Start
-  function handleStartAction() {
-    if (isFastLaneMode()) {
-      initializeCamera();
-    } else {
-      show('permission');
+  let isStartingAction = false;
+  async function handleStartAction() {
+    if (isStartingAction) return;
+    isStartingAction = true;
+    try {
+      if (isFastLaneMode()) {
+        await initializeCamera();
+      } else {
+        show('permission');
+      }
+    } catch (err) {
+      console.warn('handleStartAction error:', err);
+    } finally {
+      setTimeout(() => { isStartingAction = false; }, 1200);
     }
   }
 
@@ -3340,11 +3352,19 @@
   logoBadge?.addEventListener('pointerup', clearLogoTimer);
   logoBadge?.addEventListener('pointerleave', clearLogoTimer);
 
-  // Background and Visibility Cleanup
+  // Background and Visibility Cleanup (With safe debounce to prevent permission dialog aborts)
+  let visibilityTimer = null;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state.phase !== 'start') {
-      showNotice('화면이 전환되어 촬영을 안전하게 초기화했습니다.');
-      resetKiosk();
+      clearTimeout(visibilityTimer);
+      visibilityTimer = setTimeout(() => {
+        if (document.hidden && state.phase !== 'start') {
+          showNotice('화면이 전환되어 촬영을 안전하게 초기화했습니다.');
+          resetKiosk();
+        }
+      }, 10000);
+    } else {
+      clearTimeout(visibilityTimer);
     }
   });
 
