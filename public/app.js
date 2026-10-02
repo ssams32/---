@@ -349,11 +349,18 @@
         const errBox = $('#cameraErrorBox');
         if (errBox) {
           errBox.removeAttribute('hidden');
+          let errorMessage = '';
+          if (lastError?.name === 'NotAllowedError') {
+            errorMessage = '브라우저 카메라 권한을 허용한 뒤 다시 시도해 주세요.';
+          } else if (lastError?.name === 'NotFoundError') {
+            errorMessage = '카메라 장치를 찾을 수 없습니다. 기기 설정을 확인해 주세요.';
+          } else {
+            errorMessage = '카메라 연결에 문제가 발생했습니다. 다시 시도해 주세요.';
+          }
+
           errBox.innerHTML = `
             <strong>카메라를 켤 수 없습니다 (${lastError?.name || '오류'})</strong><br>
-            ${lastError?.name === 'NotAllowedError'
-              ? '브라우저 주소창 좌측 카메라 권한을 허용한 뒤 다시 시도해 주세요.'
-              : '카메라 장치 연결 및 브라우저 권한을 확인해 주세요.'}<br>
+            ${errorMessage}<br>
             <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
               <button type="button" class="btn-kiosk-primary" id="retryCameraBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">다시 시도</button>
               <button type="button" class="btn-kiosk-secondary" id="fallbackDemoBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">샘플 모드로 진행</button>
@@ -385,6 +392,7 @@
       video.playsInline = true;
       video.setAttribute('playsinline', '');
       video.setAttribute('muted', '');
+      video.setAttribute('webkit-playsinline', '');
       video.srcObject = stream;
 
       // Show camera stage immediately so element has active DOM layout
@@ -403,12 +411,16 @@
         const playPromise = video.play();
         if (playPromise && typeof playPromise.then === 'function') {
           await Promise.race([
-            playPromise.catch((playErr) => console.warn('video.play notification:', playErr)),
+            playPromise.catch((playErr) => {
+              // Autoplay might be blocked on iOS Safari, this is expected
+              // Just log and continue - user can still see the stream
+              console.info('Video autoplay prevented (expected on iOS):', playErr);
+            }),
             sleep(300)
           ]);
         }
       } catch (playErr) {
-        console.warn('video.play() auto-playback notification:', playErr);
+        console.warn('video.play() error:', playErr);
       }
 
       // Ensure dimensions ready without long stalling (capped at 250ms)

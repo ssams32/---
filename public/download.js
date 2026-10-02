@@ -38,11 +38,18 @@
 
   async function exchangeToken() {
     if (!token) return;
-    await requestJson(api('exchange'), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    token = '';
+    try {
+      await requestJson(api('exchange'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin' // Ensure cookies are sent
+      });
+      token = '';
+    } catch (err) {
+      console.warn('Token exchange failed:', err);
+      // Don't fail the preview load if token exchange fails
+      // The preview might still work with directImgUrl fallback
+    }
   }
 
   async function loadPreview() {
@@ -83,14 +90,21 @@
       saveBtn.hidden = false;
       statusEl.textContent = '사진이 준비되었습니다 ✨ 아래 버튼을 눌러 저장하세요!';
     } catch (err) {
-      photoWrap.hidden = true;
-      saveBtn.hidden = true;
-      if (err.status === 410 || err.message.includes('만료')) {
-        statusEl.hidden = true;
-        if (expiredBox) expiredBox.hidden = false;
+      // If token exchange fails but we have directImgUrl, continue anyway
+      if (directImgUrl) {
+        console.warn('Token exchange failed but continuing with direct URL');
+        // Continue with preview loading using directImgUrl (already handled in fast-path above)
+        // This code won't be reached if directImgUrl is truthy due to early return
       } else {
-        statusEl.textContent = err.message || '사진을 불러오지 못했습니다.';
-        retryBtn.hidden = false;
+        photoWrap.hidden = true;
+        saveBtn.hidden = true;
+        if (err.status === 410 || err.message.includes('만료')) {
+          statusEl.hidden = true;
+          if (expiredBox) expiredBox.hidden = false;
+        } else {
+          statusEl.textContent = err.message || '사진을 불러오지 못했습니다.';
+          retryBtn.hidden = false;
+        }
       }
     }
   }

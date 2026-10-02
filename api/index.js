@@ -10,8 +10,8 @@ app.disable('x-powered-by');app.set('trust proxy',Number(process.env.TRUST_PROXY
 app.use((req,res,next)=>{req.requestId=crypto.randomUUID();res.set('X-Request-Id',req.requestId);res.set('Cache-Control','private, no-store, max-age=0');next();});
 app.use(securityHeaders());app.use(originGuard);app.use(express.json({limit:'64kb',type:'application/json'}));
 const cookies=(req)=>cookieMap(req.get('cookie'));
-function setCookie(res,name,value,maxAge){res.append('Set-Cookie',`${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${cfg.production?'; Secure':''}`);}
-function clearCookie(res,name){res.append('Set-Cookie',`${name}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${cfg.production?'; Secure':''}`);}
+function setCookie(res,name,value,maxAge){res.append('Set-Cookie',`${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${cfg.production?'; Secure':''}`);}
+function clearCookie(res,name){res.append('Set-Cookie',`${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${cfg.production?'; Secure':''}`);}
 function eventActive(){const now=Date.now();return now>=cfg.eventActiveFrom.getTime()&&now<=cfg.eventActiveUntil.getTime();}
 function validUuid(v){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v||'');}
 async function limit(limiter,key,res){const x=await limiter.limit(key);res.set('RateLimit-Limit',String(x.limit));res.set('RateLimit-Remaining',String(x.remaining));res.set('RateLimit-Reset',String(x.reset));if(x.success)return true;res.set('Retry-After',String(Math.max(1,Math.ceil((x.reset-Date.now())/1000))));res.status(429).json({error:'요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'});return false;}
@@ -308,7 +308,7 @@ app.post('/api/photo/:id/exchange',async(req,res,next)=>{
     }
     if(new Date(row.expires_at).getTime()<=Date.now())return res.status(410).json({error:'다운로드 시간이 만료되었습니다.'});
     const session=createDownloadSession(cfg.downloadSecret,req.params.id,row.expires_at);
-    res.append('Set-Cookie',`pb_download=${encodeURIComponent(session.cookie)}; Path=/api/photo/${req.params.id}; HttpOnly; SameSite=Strict; Max-Age=${session.maxAge}${cfg.production?'; Secure':''}`);
+    res.append('Set-Cookie',`pb_download=${encodeURIComponent(session.cookie)}; Path=/api/photo/${req.params.id}; HttpOnly; SameSite=Lax; Max-Age=${session.maxAge}${cfg.production?'; Secure':''}`);
     res.json({ok:true});
   }catch(e){next(e);}
 });
