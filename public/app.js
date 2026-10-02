@@ -3155,7 +3155,17 @@
     e.stopPropagation();
     triggerImmediateCapture();
   });
+  $('#manualShutterBtn')?.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerImmediateCapture();
+  });
   $('#viewfinderFrame')?.addEventListener('click', (e) => {
+    if (e.target.closest('button') || e.target.closest('a')) return;
+    triggerImmediateCapture();
+  });
+  $('#viewfinderFrame')?.addEventListener('touchstart', (e) => {
+    e.preventDefault();
     if (e.target.closest('button') || e.target.closest('a')) return;
     triggerImmediateCapture();
   });
@@ -3463,12 +3473,21 @@
     const icon = $('#ratioIcon');
     if (!vf) return;
 
+    // Remove ratio classes and clear inline aspect ratio
     vf.classList.remove('ratio-portrait', 'ratio-full', 'ratio-landscape');
-    vf.classList.add(`ratio-${state.cameraRatio}`);
+    vf.style.aspectRatio = '';
 
-    const cfg = ratioConfig[state.cameraRatio] || ratioConfig.portrait;
-    if (label) label.textContent = cfg.label;
-    if (icon) icon.textContent = cfg.icon;
+    if (isFastLaneMode()) {
+      // In fast-lane mode, force 3:2 aspect ratio
+      vf.style.aspectRatio = '3 / 2';
+      if (label) label.textContent = '캐논 3:2';
+      if (icon) icon.textContent = '📷';
+    } else {
+      vf.classList.add(`ratio-${state.cameraRatio}`);
+      const cfg = ratioConfig[state.cameraRatio] || ratioConfig.portrait;
+      if (label) label.textContent = cfg.label;
+      if (icon) icon.textContent = cfg.icon;
+    }
   }
 
   $('#ratioToggleBtn')?.addEventListener('click', () => {

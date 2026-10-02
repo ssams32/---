@@ -1231,6 +1231,7 @@ main#app {
   padding: var(--space-2) var(--space-5);
   border-radius: var(--radius-pill);
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 /* Sleek, Non-Obtrusive Countdown Badge (Top-Right of Viewfinder, Never Covers Faces) */
@@ -2702,6 +2703,20 @@ main#app {
     transform: scaleX(-1);
     display: block;
   }
+
+  /* Adjust crop guide elements positioning for narrow screens */
+  .crop-guide-tag {
+    top: 4px;
+    right: 4px;
+    font-size: 9px;
+    padding: 1px 5px;
+  }
+
+  .crop-instruction-pill {
+    bottom: 8px;
+    font-size: 12px;
+    padding: 4px 12px;
+  }
   .countdown-huge-wrapper {
     position: absolute;
     top: 20px;
@@ -2745,6 +2760,7 @@ main#app {
     font-size: 15px;
     padding: 6px 14px;
     background: rgba(255, 255, 255, 0.12);
+    white-space: nowrap;
   }
   .camera-status-pane .six-node-track {
     gap: 6px;
