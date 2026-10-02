@@ -289,9 +289,30 @@
       const run = ++state.runId;
 
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-        showNotice('카메라를 사용할 수 없어 샘플 사진 모드로 시작합니다.');
-        await sleep(500);
-        generateDemoShots();
+        const errBox = $('#cameraErrorBox');
+        if (errBox) {
+          errBox.removeAttribute('hidden');
+          let errorMessage = '';
+          if (!window.isSecureContext) {
+            errorMessage = '카메라를 사용하려면 보안 연결(HTTPS)으로 접속해야 합니다. 현재 주소가 http://로 시작하면 https://로 다시 접속해 주세요.';
+          } else if (!navigator.mediaDevices?.getUserMedia) {
+            errorMessage = '이 브라우저는 카메라 기능을 지원하지 않습니다. 최신 브라우저로 업데이트해 주세요.';
+          }
+
+          errBox.innerHTML = `
+            <strong>카메라를 사용할 수 없습니다</strong><br>
+            ${errorMessage}<br>
+            <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <button type="button" class="btn-kiosk-primary" id="retryCameraBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">다시 시도</button>
+              <button type="button" class="btn-kiosk-secondary" id="fallbackDemoBtn" style="padding:10px 20px;font-size:15px;border-radius:12px;">샘플 모드로 진행</button>
+            </div>
+          `;
+          $('#retryCameraBtn')?.addEventListener('click', initializeCamera);
+          $('#fallbackDemoBtn')?.addEventListener('click', () => {
+            showNotice('샘플 사진 모드로 진행합니다.');
+            generateDemoShots();
+          });
+        }
         return;
       }
 
