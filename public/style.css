@@ -2740,15 +2740,17 @@ main#app {
     color: #FFC93C;
   }
   .camera-status-pane {
-    flex: 0 0 72px;
-    height: 72px;
+    flex: 0 0 auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
     width: 100%;
     max-width: none;
-    padding: 0 16px;
-    flex-direction: row;
+    padding: 12px 16px;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: center;
+    gap: 10px;
     background: #211C29;
     border-radius: 16px;
     margin: 0;
@@ -2764,11 +2766,20 @@ main#app {
   }
   .camera-status-pane .six-node-track {
     gap: 6px;
+    justify-content: center;
   }
   .camera-status-pane .node-dot {
     width: 24px;
     height: 24px;
     font-size: 12px;
+  }
+  /* Narrow portrait: shutter + cancel side-by-side, centered */
+  .camera-status-pane .shooting-actions-box {
+    flex-direction: row;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
   }
   .camera-status-pane .btn-shutter-kiosk {
     width: 56px;
