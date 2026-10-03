@@ -1238,8 +1238,8 @@ main#app {
 .countdown-huge-wrapper {
   position: absolute;
   top: 24px;
-  right: 28px;
-  left: auto;
+  left: 28px;
+  right: auto;
   transform: none;
   display: flex;
   align-items: center;
@@ -2720,8 +2720,8 @@ main#app {
   .countdown-huge-wrapper {
     position: absolute;
     top: 20px;
-    right: 20px;
-    left: auto;
+    left: 20px;
+    right: auto;
     transform: none;
     min-width: 60px;
     min-height: 60px;
