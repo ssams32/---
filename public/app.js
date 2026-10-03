@@ -2385,7 +2385,7 @@
     ctx.imageSmoothingQuality = 'high';
 
     const ink = '#2B2733';          // header / primary text
-    const purple = '#8B7CF6';       // MAEUM FOUR CUTS accent
+    const purple = '#8B7CF6';       // 마음 네컷 accent
     const gray = '#6E6A77';         // footer text
     const hairline = '#E4E0EB';     // divider
 
@@ -2400,7 +2400,16 @@
     const dividerY_pad = 18 * scale;
     const footerH = 92 * scale;          // footer block height
 
-    // 2. Header: left "이천시정신건강복지센터 20주년", right "MAEUM FOUR CUTS"
+    // 1b. Load Neouri character stickers (drawn last, on top)
+    const stickerUrls = [
+      '/stickers/icheon_20th_04.png', // 20th 축하해 고깔 너우리
+      '/stickers/icheon_20th_05.png', // 20주년 최고 엄지척 너우리
+    ];
+    const stickerImgs = await Promise.all(
+      stickerUrls.map((u) => loadHtmlImage(u).catch(() => null))
+    );
+
+    // 2. Header: left "이천시정신건강복지센터 20주년", right "마음 네컷"
     ctx.textBaseline = 'middle';
     ctx.fillStyle = ink;
     ctx.textAlign = 'left';
@@ -2408,10 +2417,8 @@
     ctx.fillText('이천시정신건강복지센터 20주년', pad, pad + headerH / 2);
     ctx.fillStyle = purple;
     ctx.textAlign = 'right';
-    ctx.font = `800 ${Math.round(15 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
-    try { ctx.letterSpacing = `${2 * scale}px`; } catch {}
-    ctx.fillText('MAEUM FOUR CUTS', cardW - pad, pad + headerH / 2);
-    try { ctx.letterSpacing = '0px'; } catch {}
+    ctx.font = `800 ${Math.round(17 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.fillText('마음 네컷', cardW - pad, pad + headerH / 2);
 
     // 3. 2x2 photo grid
     const gridTop = pad + headerH + 8 * scale;
@@ -2468,6 +2475,24 @@
     ctx.font = `600 ${Math.round(17 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
     ctx.fillStyle = '#7A7584';
     ctx.fillText('당신의 오늘을 늘 응원합니다 ✨', cardW / 2, footerTop + 30 * scale);
+
+    // 6. Neouri character stickers (on top, overlapping photo corners)
+    const stickerSize = 100 * scale;
+    const drawSticker = (img, cx, cy, rot) => {
+      if (!img) return;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.drawImage(img, -stickerSize / 2, -stickerSize / 2, stickerSize, stickerSize);
+      ctx.restore();
+    };
+    // Party-hat Neouri: inside the top-right corner of the top-right photo
+    // (kept clear of the header text above)
+    const trX = pad + cellW + gap + cellW;
+    drawSticker(stickerImgs[0], trX - 24 * scale, gridTop + 78 * scale, 0.10);
+    // Thumbs-up Neouri: bottom-left corner of the bottom-left photo
+    const blY = gridTop + cellH + gap + cellH;
+    drawSticker(stickerImgs[1], pad + 24 * scale, blY - 24 * scale, -0.08);
 
     return canvas;
   }
