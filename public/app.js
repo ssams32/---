@@ -186,6 +186,37 @@
     } catch {}
   }
 
+  // Update Top Progress Rail (fast-lane: 촬영 -> 사진 선택 -> 출력 -> 완성)
+  // Restored: the definition was removed in 3525fbb but show() still calls it,
+  // which threw ReferenceError and aborted initializeCamera() before
+  // startShootingSequence() could run (camera opened, auto-shoot never started).
+  function updateProgressRail(currentScreen) {
+    const stepMapping = {
+      permission: 'camera',
+      camera: 'camera',
+      select: 'select',
+      filter: 'filter',
+      edit: 'edit',
+      preview: 'preview',
+      composing: 'result',
+      result: 'result'
+    };
+    const steps = getWorkflowSteps();
+    const stepIds = steps.map((st) => st.id);
+    const activeStep = stepMapping[currentScreen] || 'camera';
+    const activeIdx = stepIds.indexOf(activeStep);
+
+    $$('.rail-step').forEach((stepEl) => {
+      const stepIdx = stepIds.indexOf(stepEl.dataset.step);
+      stepEl.classList.toggle('active', stepIdx === activeIdx);
+      stepEl.classList.toggle('completed', stepIdx !== -1 && stepIdx < activeIdx);
+      const dot = stepEl.querySelector('.step-dot');
+      if (dot) {
+        dot.textContent = (stepIdx !== -1 && stepIdx < activeIdx) ? '✓' : String(stepIdx + 1);
+      }
+    });
+  }
+
   // Screen Navigation Controller
   function show(screenId) {
     screens.forEach((id) => {
