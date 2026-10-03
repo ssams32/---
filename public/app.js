@@ -2566,9 +2566,8 @@
       const masterCanvas = await composeMasterCardCanvas();
       state.masterCardCanvas = masterCanvas;
 
-      // 2. Compose 4-Up Print Sheet for Canon SELPHY CP1200
-      const sheetCanvas = composePrintSheetCanvas(masterCanvas, state.showCutGuides);
-      state.printSheetCanvas = sheetCanvas;
+      // 2. Single-strip print: no 4-up copies — print the selected card as-is
+      state.printSheetCanvas = masterCanvas;
 
       // 3. Render Digital Master into #finalCanvas
       const finalCanvas = $('#finalCanvas');
@@ -2893,13 +2892,14 @@
     const canvas = $('#printSheetCanvas');
     if (!canvas || !state.masterCardCanvas) return;
 
-    const sheetCanvas = composePrintSheetCanvas(state.masterCardCanvas, state.showCutGuides);
-    state.printSheetCanvas = sheetCanvas;
+    // Single-strip preview: show the selected 4-cut card as-is (no 4-up copies)
+    const masterCanvas = state.masterCardCanvas;
+    state.printSheetCanvas = masterCanvas;
 
-    canvas.width = sheetCanvas.width;
-    canvas.height = sheetCanvas.height;
+    canvas.width = masterCanvas.width;
+    canvas.height = masterCanvas.height;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(sheetCanvas, 0, 0);
+    ctx.drawImage(masterCanvas, 0, 0);
   }
 
   function showPrintPreview() {
