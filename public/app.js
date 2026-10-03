@@ -2371,10 +2371,11 @@
   // FAST-LANE MASTER CARD & PRINT SHEET ENGINE (SECTIONS 8, 9, 10, 11, 14, 15, 21)
   // ===================================================================
   async function composeMasterCardCanvas() {
-    // Master Card: 576 x 864 base dimensions (2:3 aspect ratio), 2x scale (1152 x 1728) for print precision
+    // Master Card: 2x2 grid on warm-white card, matching the main-screen sample.
+    // Base 600 x 680, 2x scale (1200 x 1360) for print precision.
     const scale = 2;
-    const cardW = 576 * scale;
-    const cardH = 864 * scale;
+    const cardW = 600 * scale;
+    const cardH = 680 * scale;
 
     const canvas = document.createElement('canvas');
     canvas.width = cardW;
@@ -2383,116 +2384,90 @@
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    const framePreset = CFG.frames?.presets?.find((f) => f.id === 'event-black') || {
-      colors: {
-        background: '#0B0B0D',
-        photoBorder: '#2A2A2F',
-        primaryText: '#FFFFFF',
-        secondaryText: '#CFCFD4',
-        accent: '#FF4F87'
-      },
-      header: { text: '오늘의 마음 네컷', heightRatio: 0.060 },
-      footer: { text: '당신의 오늘을 응원합니다', heightRatio: 0.075 },
-      photo: { cornerRadiusRatio: 0.012, borderWidthRatio: 0.003, gapRatio: 0.010 }
-    };
+    const ink = '#2B2733';          // header / primary text
+    const purple = '#8B7CF6';       // MAEUM FOUR CUTS accent
+    const gray = '#6E6A77';         // footer text
+    const hairline = '#E4E0EB';     // divider
 
-    // 1. Fill Event-Black Background
-    ctx.fillStyle = framePreset.colors?.background || '#0B0B0D';
+    // 1. Warm-white card background (full bleed for JPEG print)
+    ctx.fillStyle = '#FFFCF6';
     ctx.fillRect(0, 0, cardW, cardH);
 
-    const innerPadding = 18 * scale;
-    const photoGap = 8 * scale;
-    const headerHeight = cardH * (framePreset.header?.heightRatio || 0.060);
-    const footerHeight = cardH * (framePreset.footer?.heightRatio || 0.075);
-    const photoCount = 4;
+    const pad = 30 * scale;              // outer padding
+    const headerH = 44 * scale;           // header row height
+    const gap = 12 * scale;              // photo gap
+    const radius = 18 * scale;           // photo corner radius
+    const dividerY_pad = 18 * scale;
+    const footerH = 92 * scale;          // footer block height
 
-    const photoContentH = cardH - headerHeight - footerHeight - (innerPadding * 2) - ((photoCount - 1) * photoGap);
-    const slotH = photoContentH / photoCount;
-    const slotW = cardW - (innerPadding * 2);
-    const cornerRadius = cardH * (framePreset.photo?.cornerRadiusRatio || 0.012);
-    const borderWidth = Math.max(1, cardH * (framePreset.photo?.borderWidthRatio || 0.003));
+    // 2. Header: left "이천시정신건강복지센터 20주년", right "MAEUM FOUR CUTS"
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = ink;
+    ctx.textAlign = 'left';
+    ctx.font = `800 ${Math.round(21 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.fillText('이천시정신건강복지센터 20주년', pad, pad + headerH / 2);
+    ctx.fillStyle = purple;
+    ctx.textAlign = 'right';
+    ctx.font = `800 ${Math.round(15 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    try { ctx.letterSpacing = `${2 * scale}px`; } catch {}
+    ctx.fillText('MAEUM FOUR CUTS', cardW - pad, pad + headerH / 2);
+    try { ctx.letterSpacing = '0px'; } catch {}
 
-    // 2. Render 4 Vertically Stacked Photos
-    const startY = innerPadding + headerHeight;
+    // 3. 2x2 photo grid
+    const gridTop = pad + headerH + 8 * scale;
+    const gridBottom = cardH - pad - footerH - dividerY_pad - 2;
+    const gridH = gridBottom - gridTop;
+    const cellW = (cardW - pad * 2 - gap) / 2;
+    const cellH = (gridH - gap) / 2;
+
+    const order = [0, 1, 2, 3];
     for (let i = 0; i < 4; i++) {
-      const photoId = state.selected[i];
+      const photoId = state.selected[order[i]];
       const s = state.shots.find((x) => x.id === photoId);
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const px = pad + col * (cellW + gap);
+      const py = gridTop + row * (cellH + gap);
+
+      // cell background (in case photo missing)
+      ctx.save();
+      ctx.fillStyle = '#EFEAF4';
+      ctx.beginPath();
+      ctx.roundRect(px, py, cellW, cellH, radius);
+      ctx.fill();
+      ctx.restore();
+
       if (!s) continue;
       const img = await loadHtmlImage(s.url);
 
-      const px = innerPadding;
-      const py = startY + i * (slotH + photoGap);
-
-      // Rounded photo slot clipping
       ctx.save();
       ctx.beginPath();
-      ctx.roundRect(px, py, slotW, slotH, cornerRadius);
+      ctx.roundRect(px, py, cellW, cellH, radius);
       ctx.clip();
-      drawCover(ctx, img, px, py, slotW, slotH);
-      ctx.restore();
-
-      // Subtle dark gray / warm white border
-      ctx.save();
-      ctx.strokeStyle = framePreset.colors?.photoBorder || '#2A2A2F';
-      ctx.lineWidth = borderWidth;
-      ctx.beginPath();
-      ctx.roundRect(px, py, slotW, slotH, cornerRadius);
-      ctx.stroke();
+      drawCover(ctx, img, px, py, cellW, cellH);
       ctx.restore();
     }
 
-    // 3. Header Branding Text
-    ctx.fillStyle = framePreset.colors?.primaryText || '#FFFFFF';
+    // 4. Divider hairline
+    const divY = gridTop + gridH + dividerY_pad;
+    ctx.strokeStyle = hairline;
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.beginPath();
+    ctx.moveTo(pad, divY);
+    ctx.lineTo(cardW - pad, divY);
+    ctx.stroke();
+
+    // 5. Footer
+    const footerTop = divY + 22 * scale;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `900 ${Math.round(23 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
-    ctx.letterSpacing = '1px';
-    const headerCenterY = innerPadding + headerHeight / 2 - (2 * scale);
-    ctx.fillText(framePreset.header?.text || '오늘의 마음 네컷', cardW / 2, headerCenterY);
-
-    ctx.font = `700 ${Math.round(11 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
-    ctx.fillStyle = framePreset.colors?.secondaryText || '#CFCFD4';
-    ctx.fillText('MAEUM FOUR CUTS', cardW / 2, headerCenterY + (18 * scale));
-
-    // 4. Footer Text and Date
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
-    const footerCenterY = cardH - innerPadding - footerHeight / 2;
-
-    ctx.fillStyle = framePreset.colors?.secondaryText || '#CFCFD4';
-    ctx.font = `700 ${Math.round(15 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(framePreset.footer?.text || '당신의 오늘을 응원합니다', cardW / 2, footerCenterY - (8 * scale));
-
-    ctx.font = `600 ${Math.round(11 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
-    ctx.fillStyle = framePreset.colors?.accent || '#FF4F87';
-    ctx.fillText(`${dateStr} · 20th ANNIVERSARY`, cardW / 2, footerCenterY + (12 * scale));
-
-    // 5. Fixed Event Sticker Preset Decoration (Section 10 & 11)
-    const stickerPreset = CFG.fixedStickerPresets?.presets?.find((p) => p.id === 'event-fixed-decoration') || {
-      placements: [
-        { id: 'top-sparkle', type: 'emoji', value: '✨', target: 'card', x: 0.90, y: 0.045, scale: 0.040, rotation: -0.12, opacity: 0.85 },
-        { id: 'bottom-heart', type: 'emoji', value: '💜', target: 'card', x: 0.08, y: 0.952, scale: 0.034, rotation: 0.10, opacity: 0.90 }
-      ]
-    };
-
-    if (stickerPreset?.placements) {
-      for (const pl of stickerPreset.placements) {
-        ctx.save();
-        const sx = pl.x * cardW;
-        const sy = pl.y * cardH;
-        const sSize = Math.round(cardW * (pl.scale || 0.040));
-        ctx.translate(sx, sy);
-        ctx.rotate(pl.rotation || 0);
-        ctx.globalAlpha = pl.opacity !== undefined ? pl.opacity : 0.9;
-        ctx.font = `${sSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(pl.value, 0, 0);
-        ctx.restore();
-      }
-    }
+    ctx.fillStyle = gray;
+    ctx.font = `800 ${Math.round(17 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    try { ctx.letterSpacing = `${1 * scale}px`; } catch {}
+    ctx.fillText('2026. 20th ANNIVERSARY', cardW / 2, footerTop);
+    try { ctx.letterSpacing = '0px'; } catch {}
+    ctx.font = `600 ${Math.round(17 * scale)}px "Pretendard Variable", Pretendard, -apple-system, sans-serif`;
+    ctx.fillStyle = '#7A7584';
+    ctx.fillText('당신의 오늘을 늘 응원합니다 ✨', cardW / 2, footerTop + 30 * scale);
 
     return canvas;
   }
