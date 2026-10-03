@@ -466,6 +466,7 @@
       state.isInitializingCamera = false;
       await startShootingSequence();
     } finally {
+      // Ensure isInitializingCamera is reset to false on all early return paths
       state.isInitializingCamera = false;
     }
   }
@@ -746,6 +747,11 @@
       if (run === state.runId) {
         showNotice(`촬영 중 문제가 발생하여 처음 화면으로 이동합니다: ${e?.message || '오류'}`);
         resetKiosk();
+      }
+    } finally {
+      // Ensure isShooting is reset to false on all early return paths
+      if (state.isShooting) {
+        state.isShooting = false;
       }
     }
   }
