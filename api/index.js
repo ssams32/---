@@ -279,8 +279,9 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     const proto=req.get('x-forwarded-proto')||(req.secure?'https':'http');
     const host=req.get('x-forwarded-host')||req.get('host')||'ichon-20th.vercel.app';
     const baseUrl=((cfg.publicUrl&&!cfg.publicUrl.includes('localhost'))?cfg.publicUrl:`${proto}://${host}`).trim();
-    const hashData = cdnUrl ? `img=${encodeURIComponent(cdnUrl)}&t=${token}` : token;
-    const pageUrl=`${baseUrl}/d/${photoId}#${hashData}`;
+    // Direct download URL: no login, no cookies — scanning the QR starts the
+    // file download immediately on iPhone Safari and Android Chrome.
+    const pageUrl=`${baseUrl}/api/photo/${photoId}/file?t=${encodeURIComponent(token)}`;
     const qr=await QRCode.toDataURL(pageUrl,{width:440,margin:2,errorCorrectionLevel:'M',color:{dark:'#121016',light:'#FFFFFF'}});
     await redis.set(usedKey,'1',{ex:900});
     await release(redis,reservationKey,req.requestId);
@@ -346,6 +347,33 @@ app.get('/api/photo/:id/download',downloadRequired,async(req,res,next)=>{
     const u=await signed(row,true);
     if(!u)return res.status(410).json({error:'다운로드 시간이 만료되었습니다.'});
     res.json({downloadUrl:u.url});
+  }catch(e){next(e);}
+});
+
+// Direct file download: no login, no cookies, no JS page.
+// QR codes point here so scanning starts the download immediately
+// on both iPhone Safari and Android Chrome.
+// Auth is the stateless HMAC download token in the `t` query param.
+app.get('/api/photo/:id/file',async(req,res,next)=>{
+  try{
+    if(!validUuid(req.params.id))return res.status(404).json({error:'잘못된 사진 주소입니다.'});
+    const parsed=parseDownloadToken(cfg.downloadSecret,req.params.id,req.query.t);
+    if(!parsed)return res.status(404).json({error:'유효하지 않거나 만료된 다운로드 인증정보입니다.'});
+    const {sessionIpLimit,supabase}=getClients();
+    if(!await limit(sessionIpLimit,`file:${clientKey(req)}`,res))return;
+    const row=await record(req.params.id);
+    if(!row)return res.status(404).json({error:'사진을 찾을 수 없습니다.'});
+    if(new Date(row.expires_at).getTime()<=Date.now())return res.status(410).json({error:'다운로드 시간이 만료되었습니다.'});
+    const dl=await supabase.storage.from(cfg.bucket).download(row.storage_path);
+    if(dl.error||!dl.data)return res.status(404).json({error:'사진을 찾을 수 없습니다.'});
+    const buf=Buffer.from(await dl.data.arrayBuffer());
+    const filename=`maeum-fourcuts-${req.params.id.slice(0,8)}.jpg`;
+    res.set('Content-Type','image/jpeg');
+    res.set('Content-Length',String(buf.length));
+    res.set('Content-Disposition',`attachment; filename="${filename}"`);
+    res.set('Cache-Control','private, no-store, max-age=0');
+    log.info('photo_file_download',{requestId:req.requestId,photoRef:hmacRef(cfg.rateLimitHashSecret,req.params.id,12),bytes:buf.length});
+    res.send(buf);
   }catch(e){next(e);}
 });
 
