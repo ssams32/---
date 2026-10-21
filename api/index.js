@@ -42,33 +42,6 @@ async function getStoredAdminConfig(){
   }
 }
 
-app.get('/api/diag-env',async(req,res)=>{
-  if(req.query.t!=='x7diag-temp-9f3')return res.status(404).json({error:'not found'});
-  let host='';try{host=new URL(cfg.supabaseUrl).host;}catch{host='(unparseable)';}
-  let keyRole='(unknown)';try{keyRole=JSON.parse(Buffer.from(cfg.supabaseKey.split('.')[1],'base64').toString()).role||'(none)';}catch{}
-  const probe={};
-  try{
-    const {supabase}=getClients();
-    const b=await supabase.storage.listBuckets();
-    probe.buckets=b.error?('ERR: '+b.error.message):(b.data||[]).map(x=>x.name);
-    const q=await supabase.from('photo_downloads').select('id',{count:'exact',head:true});
-    probe.table=q.error?('ERR: '+q.error.message):'ok';
-  }catch(e){probe.exception=String(e&&e.message||e);}
-  res.json({keyRole,probe,
-    supabaseUrlHost:host,
-    supabaseUrlStartsHttps:cfg.supabaseUrl.startsWith('https://'),
-    supabaseUrlHasDummy:cfg.supabaseUrl.includes('dummy'),
-    supabaseUrlHasYourProject:cfg.supabaseUrl.includes('YOUR_PROJECT'),
-    supabaseUrlLength:cfg.supabaseUrl.length,
-    localMockEnv:process.env.LOCAL_MOCK||'(unset)',
-    keyPresent:cfg.supabaseKey.length>0&&!cfg.supabaseKey.includes('dummy'),
-    keyLength:cfg.supabaseKey.length,
-    keyLooksJwt:cfg.supabaseKey.startsWith('eyJ'),
-    vercelEnv:process.env.VERCEL_ENV||'(unset)',
-    gitSha:(process.env.VERCEL_GIT_COMMIT_SHA||'(unset)').slice(0,7)
-  });
-});
-
 app.get('/manifest.json',(req,res)=>{
   const p=path.join(__dirname,'..','public','manifest.json');
   if(fs.existsSync(p)){
