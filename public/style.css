@@ -4641,6 +4641,72 @@ main#app {
   display: block;
 }
 
+/* Save to phone QR strip in print preview */
+.preview-qr-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #FFFFFF;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  box-shadow: var(--shadow-soft);
+  width: 100%;
+  max-width: 460px;
+  flex: none;
+  box-sizing: border-box;
+}
+
+.preview-qr-img {
+  width: 96px;
+  height: 96px;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: var(--radius-xs);
+  display: block;
+  background: #FFFFFF;
+}
+
+@media (min-width: 1024px) {
+  .preview-qr-img {
+    width: 112px;
+    height: 112px;
+  }
+}
+
+.preview-qr-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-align: left;
+}
+
+.preview-qr-texts strong {
+  font-size: 16px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink);
+  line-height: 1.35;
+  display: block;
+}
+
+.preview-qr-texts span {
+  font-size: 13px;
+  color: var(--color-ink-secondary);
+  line-height: 1.4;
+  word-break: keep-all;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .preview-qr-strip {
+    padding: 8px 14px;
+    gap: 12px;
+    max-width: 360px;
+  }
+}
+
 .preview-actions-dock {
   display: flex;
   align-items: center;
@@ -4704,6 +4770,7 @@ main#app {
   #kioskHeader,
   #app > *:not(#preview),
   .preview-header-bar,
+  .preview-qr-strip,
   .preview-actions-dock,
   .preview-operator-bar,
   .header-tools,

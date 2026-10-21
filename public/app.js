@@ -2823,10 +2823,12 @@
       state.localBlobUrl = localBlobUrl;
 
       const qrImg = $('#qr');
+      const previewQr = $('#previewQr');
       const directDl = $('#directDownload');
 
       if (data && data.qr) {
         if (qrImg) qrImg.src = data.qr;
+        if (previewQr) previewQr.src = data.qr;
         if (directDl) {
           directDl.href = localBlobUrl;
           directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
@@ -2850,16 +2852,19 @@
         // By setting the target directly to the image URL, we bypass Vercel Auth entirely for Android QR scans!
         const targetUrl = clientCdnUrl ? clientCdnUrl : location.origin;
 
-        if (window.QRCode && qrImg) {
+        if (window.QRCode && (qrImg || previewQr)) {
           try {
             const qrDataUrl = await window.QRCode.toDataURL(targetUrl, {
               width: 440,
               margin: 2,
               color: { dark: '#121016', light: '#FFFFFF' }
             });
-            qrImg.src = qrDataUrl;
+            if (qrImg) qrImg.src = qrDataUrl;
+            if (previewQr) previewQr.src = qrDataUrl;
           } catch {
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(targetUrl)}`;
+            const fallbackSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(targetUrl)}`;
+            if (qrImg) qrImg.src = fallbackSrc;
+            if (previewQr) previewQr.src = fallbackSrc;
           }
         }
         if (directDl) {
@@ -3083,6 +3088,7 @@
     $('#photoGrid')?.replaceChildren();
     $('#stripPreview')?.replaceChildren();
     $('#qr')?.removeAttribute('src');
+    $('#previewQr')?.removeAttribute('src');
     $('#directDownload')?.removeAttribute('href');
     $('#cameraErrorBox')?.setAttribute('hidden', 'true');
     $('#uploadErrorBox')?.setAttribute('hidden', 'true');
