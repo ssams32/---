@@ -42,10 +42,19 @@ async function getStoredAdminConfig(){
   }
 }
 
-app.get('/api/diag-env',(req,res)=>{
+app.get('/api/diag-env',async(req,res)=>{
   if(req.query.t!=='x7diag-temp-9f3')return res.status(404).json({error:'not found'});
   let host='';try{host=new URL(cfg.supabaseUrl).host;}catch{host='(unparseable)';}
-  res.json({
+  let keyRole='(unknown)';try{keyRole=JSON.parse(Buffer.from(cfg.supabaseKey.split('.')[1],'base64').toString()).role||'(none)';}catch{}
+  const probe={};
+  try{
+    const {supabase}=getClients();
+    const b=await supabase.storage.listBuckets();
+    probe.buckets=b.error?('ERR: '+b.error.message):(b.data||[]).map(x=>x.name);
+    const q=await supabase.from('photo_downloads').select('id',{count:'exact',head:true});
+    probe.table=q.error?('ERR: '+q.error.message):'ok';
+  }catch(e){probe.exception=String(e&&e.message||e);}
+  res.json({keyRole,probe,
     supabaseUrlHost:host,
     supabaseUrlStartsHttps:cfg.supabaseUrl.startsWith('https://'),
     supabaseUrlHasDummy:cfg.supabaseUrl.includes('dummy'),
