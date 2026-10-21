@@ -38,8 +38,8 @@ function config() {
   const defaultSecret = 'maeum-fourcuts-default-secure-secret-key-32chars';
 
   return Object.freeze({
-    supabaseUrl: optional('SUPABASE_URL', 'https://dummy.supabase.co'),
-    supabaseKey: optional('SUPABASE_SERVICE_ROLE_KEY', 'dummy-service-role-key-dummy-service-role-key'),
+    supabaseUrl: optional('SUPABASE_URL', 'https://dummy.supabase.co').trim(),
+    supabaseKey: optional('SUPABASE_SERVICE_ROLE_KEY', 'dummy-service-role-key-dummy-service-role-key').trim(),
     bucket: process.env.SUPABASE_STORAGE_BUCKET || 'photo-booth-private',
     redisUrl: optional('UPSTASH_REDIS_REST_URL', 'https://dummy.upstash.io'),
     redisToken: optional('UPSTASH_REDIS_REST_TOKEN', 'dummy-token'),
