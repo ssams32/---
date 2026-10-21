@@ -217,6 +217,18 @@ function createLocalMockClients(cfg) {
           const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
           return { data: { signedUrl: `data:${mime};base64,${buf.toString('base64')}` }, error: null };
         },
+        download: async (filePath) => {
+          let buf = memoryStorage.get(filePath);
+          if (!buf) {
+            try {
+              const f = getDiskFile('file_' + filePath);
+              if (fs.existsSync(f)) buf = fs.readFileSync(f);
+            } catch {}
+          }
+          if (!buf) return { data: null, error: new Error('Object not found') };
+          const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+          return { data: new Blob([buf], { type: mime }), error: null };
+        },
         remove: async (paths) => {
           for (const p of paths) {
             memoryStorage.delete(p);
