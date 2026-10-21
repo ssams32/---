@@ -2,243 +2,18 @@ const { createClient } = require('@supabase/supabase-js');
 const { Redis } = require('@upstash/redis');
 const { Ratelimit } = require('@upstash/ratelimit');
 const { getConfig } = require('./config');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const {
+  createMockRedis,
+  createMockLimiter,
+  createMockSupabase
+} = require('./mock-factories');
 
 let clients;
 
-const tmpDir = path.join(os.tmpdir(), 'maeum_fourcuts_storage');
-try { if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
-
 function createLocalMockClients(cfg) {
-  const memoryDb = new Map();
-  const memoryStorage = new Map();
-  const memoryRedis = new Map();
-
-  function getDiskFile(key) {
-    return path.join(tmpDir, String(key).replace(/[^a-zA-Z0-9._-]/g, '_'));
-  }
-
-  const mockRedis = {
-    get: async (key) => memoryRedis.get(key) || null,
-    set: async (key, val, opts) => {
-      if (opts && opts.nx && memoryRedis.has(key)) return null;
-      memoryRedis.set(key, val);
-      if (opts && opts.ex) {
-        setTimeout(() => memoryRedis.delete(key), opts.ex * 1000);
-      }
-      return 'OK';
-    },
-    exists: async (key) => (memoryRedis.has(key) ? 1 : 0),
-    del: async (key) => (memoryRedis.delete(key) ? 1 : 0),
-    eval: async (script, keys, args) => {
-      const key = keys[0];
-      if (memoryRedis.get(key) === args[0]) {
-        memoryRedis.delete(key);
-        return 1;
-      }
-      return 0;
-    }
-  };
-
-  const mockLimiter = {
-    limit: async () => ({ success: true, limit: 100, remaining: 99, reset: Date.now() + 60000 })
-  };
-
-  const mockSupabase = {
-    from: (table) => {
-      return {
-        insert: async (data) => {
-          const row = Array.isArray(data) ? data[0] : data;
-          const fullRow = { ...row, created_at: new Date().toISOString() };
-          memoryDb.set(row.photo_id, fullRow);
-          try { fs.writeFileSync(getDiskFile('db_' + row.photo_id), JSON.stringify(fullRow)); } catch {}
-          return { data: row, error: null };
-        },
-        select: (cols, opts) => {
-          function getRow(id) {
-            if (memoryDb.has(id)) return memoryDb.get(id);
-            try {
-              const f = getDiskFile('db_' + id);
-              if (fs.existsSync(f)) {
-                const parsed = JSON.parse(fs.readFileSync(f, 'utf8'));
-                memoryDb.set(id, parsed);
-                return parsed;
-              }
-            } catch {}
-            return null;
-          }
-          return {
-            eq: (field, val) => {
-              return {
-                eq: (f2, v2) => {
-                  return {
-                    maybeSingle: async () => {
-                      for (const row of memoryDb.values()) {
-                        if (row[field] === val && row[f2] === v2) return { data: row, error: null };
-                      }
-                      return { data: null, error: null };
-                    },
-                    select: (selCols) => ({
-                      maybeSingle: async () => {
-                        for (const row of memoryDb.values()) {
-                          if (row[field] === val && row[f2] === v2) return { data: row, error: null };
-                        }
-                        return { data: null, error: null };
-                      }
-                    })
-                  };
-                },
-                gt: (f2, v2) => {
-                  if (opts && opts.head) {
-                    let count = 0;
-                    for (const row of memoryDb.values()) {
-                      if (row[field] === val && row[f2] > v2) count++;
-                    }
-                    return Promise.resolve({ count, data: null, error: null });
-                  }
-                  return Promise.resolve({ data: [], error: null });
-                },
-                lte: (f2, v2) => {
-                  if (opts && opts.head) {
-                    let count = 0;
-                    for (const row of memoryDb.values()) {
-                      if (row[field] === val && row[f2] <= v2) count++;
-                    }
-                    return Promise.resolve({ count, data: null, error: null });
-                  }
-                  return Promise.resolve({ data: [], error: null });
-                },
-                maybeSingle: async () => {
-                  for (const row of memoryDb.values()) {
-                    if (row[field] === val) return { data: row, error: null };
-                  }
-                  return { data: null, error: null };
-                },
-                in: (f2, arr) => ({
-                  select: (selCols) => ({
-                    maybeSingle: async () => {
-                      for (const row of memoryDb.values()) {
-                        if (row[field] === val && arr.includes(row[f2])) return { data: row, error: null };
-                      }
-                      return { data: null, error: null };
-                    }
-                  })
-                })
-              };
-            },
-            gt: (field, val) => {
-              let count = 0;
-              for (const row of memoryDb.values()) {
-                if (row[field] > val) count++;
-              }
-              return Promise.resolve({ count, data: null, error: null });
-            },
-            lte: (field, val) => {
-              let count = 0;
-              for (const row of memoryDb.values()) {
-                if (row[field] <= val) count++;
-              }
-              return Promise.resolve({ count, data: null, error: null });
-            },
-            or: (cond) => ({
-              order: () => ({
-                limit: async (num) => {
-                  const arr = [...memoryDb.values()].slice(0, num);
-                  return { data: arr, error: null };
-                }
-              })
-            })
-          };
-        },
-        update: (updateData) => {
-          return {
-            eq: (field, val) => {
-              return {
-                eq: (f2, v2) => ({
-                  select: (selCols) => ({
-                    maybeSingle: async () => {
-                      for (const [k, row] of memoryDb.entries()) {
-                        if (row[field] === val && row[f2] === v2) {
-                          const updated = { ...row, ...updateData };
-                          memoryDb.set(k, updated);
-                          return { data: updated, error: null };
-                        }
-                      }
-                      return { data: null, error: null };
-                    }
-                  })
-                }),
-                in: (f2, arr) => ({
-                  select: (selCols) => ({
-                    maybeSingle: async () => {
-                      for (const [k, row] of memoryDb.entries()) {
-                        if (row[field] === val && arr.includes(row[f2])) {
-                          const updated = { ...row, ...updateData };
-                          memoryDb.set(k, updated);
-                          return { data: updated, error: null };
-                        }
-                      }
-                      return { data: null, error: null };
-                    }
-                  })
-                })
-              };
-            }
-          };
-        },
-        delete: () => ({
-          eq: async (field, val) => {
-            for (const [k, row] of memoryDb.entries()) {
-              if (row[field] === val) memoryDb.delete(k);
-            }
-            return { error: null };
-          }
-        })
-      };
-    },
-    storage: {
-      from: (bucket) => ({
-        upload: async (filePath, buffer) => {
-          memoryStorage.set(filePath, buffer);
-          try { fs.writeFileSync(getDiskFile('file_' + filePath), buffer); } catch {}
-          return { data: { path: filePath }, error: null };
-        },
-        createSignedUrl: async (filePath, seconds, options) => {
-          let buf = memoryStorage.get(filePath);
-          if (!buf) {
-            try {
-              const f = getDiskFile('file_' + filePath);
-              if (fs.existsSync(f)) buf = fs.readFileSync(f);
-            } catch {}
-          }
-          if (!buf) return { data: null, error: new Error('Object not found') };
-          const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-          return { data: { signedUrl: `data:${mime};base64,${buf.toString('base64')}` }, error: null };
-        },
-        download: async (filePath) => {
-          let buf = memoryStorage.get(filePath);
-          if (!buf) {
-            try {
-              const f = getDiskFile('file_' + filePath);
-              if (fs.existsSync(f)) buf = fs.readFileSync(f);
-            } catch {}
-          }
-          if (!buf) return { data: null, error: new Error('Object not found') };
-          const mime = filePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-          return { data: new Blob([buf], { type: mime }), error: null };
-        },
-        remove: async (paths) => {
-          for (const p of paths) {
-            memoryStorage.delete(p);
-            try { const f = getDiskFile('file_' + p); if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
-          }
-          return { data: paths, error: null };
-        }
-      })
-    }
-  };
+  const mockSupabase = createMockSupabase();
+  const mockRedis = createMockRedis();
+  const mockLimiter = createMockLimiter();
 
   return {
     supabase: mockSupabase,
@@ -255,30 +30,53 @@ function getClients() {
   if (clients) return clients;
   const cfg = getConfig();
 
-  const isLocalMock =
+  const isSupabaseReal = !(
     process.env.LOCAL_MOCK === 'true' ||
     cfg.supabaseUrl.includes('YOUR_PROJECT') ||
     cfg.supabaseUrl.includes('dummy') ||
+    !cfg.supabaseUrl.startsWith('https://')
+  );
+
+  const isRedisReal = !(
     cfg.redisUrl.includes('YOUR_REDIS') ||
     cfg.redisUrl.includes('dummy') ||
-    cfg.redisToken.includes('dummy') ||
-    !cfg.supabaseUrl.startsWith('https://');
+    cfg.redisToken.includes('dummy')
+  );
 
-  if (isLocalMock) {
-    console.log('[Info] 안전한 로컬/서버리스 인메모리 저장소(Memory DB & Storage & Redis) 모드로 실행됩니다.');
+  // 1) Supabase dummy → 전체 목업 (로컬 개발 보존)
+  if (!isSupabaseReal) {
+    console.log('[Info] 로컬 전체 목업 모드 (Supabase dummy)');
     clients = createLocalMockClients(cfg);
     return clients;
   }
 
-  const redis = new Redis({ url: cfg.redisUrl, token: cfg.redisToken });
+  // 2) Supabase real + Redis real → 완전 실서버
+  if (isRedisReal) {
+    const redis = new Redis({ url: cfg.redisUrl, token: cfg.redisToken });
+    clients = {
+      supabase: createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } }),
+      redis,
+      activationLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '10 m'), prefix: 'fourcuts:activation', analytics: true }),
+      adminLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(15, '10 m'), prefix: 'fourcuts:admin', analytics: true }),
+      sessionIpLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(300, '10 m'), prefix: 'fourcuts:session-ip', analytics: true }),
+      uploadIpLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(150, '10 m'), prefix: 'fourcuts:upload-ip', analytics: true }),
+      sessionLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(2, '15 m'), prefix: 'fourcuts:session', analytics: true })
+    };
+    return clients;
+  }
+
+  // 3) Supabase real + Redis dummy → 하이브리드 모드 (신규)
+  console.log('[Info] 하이브리드 모드: Supabase 실연결 + Redis/레이트리밋 인메모리 심');
+  const mockRedis = createMockRedis();
+  const mockLimiter = createMockLimiter();
   clients = {
     supabase: createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } }),
-    redis,
-    activationLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '10 m'), prefix: 'fourcuts:activation', analytics: true }),
-    adminLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(15, '10 m'), prefix: 'fourcuts:admin', analytics: true }),
-    sessionIpLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(300, '10 m'), prefix: 'fourcuts:session-ip', analytics: true }),
-    uploadIpLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(150, '10 m'), prefix: 'fourcuts:upload-ip', analytics: true }),
-    sessionLimit: new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(2, '15 m'), prefix: 'fourcuts:session', analytics: true })
+    redis: mockRedis,
+    activationLimit: mockLimiter,
+    adminLimit: mockLimiter,
+    sessionIpLimit: mockLimiter,
+    uploadIpLimit: mockLimiter,
+    sessionLimit: mockLimiter
   };
   return clients;
 }
