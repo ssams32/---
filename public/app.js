@@ -2792,6 +2792,7 @@
       setStage(2);
 
       let data = null;
+      let uploadErrorMessage = null;
       try {
         await getSecuritySession();
         const form = new FormData();
@@ -2807,12 +2808,30 @@
 
         if (res.ok) {
           data = await res.json().catch(() => null);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData.error || '';
+          if (res.status === 403 && typeof errMsg === 'string' && errMsg.includes('활성화')) {
+            uploadErrorMessage = '/activate 페이지에서 기기 활성화가 필요합니다.';
+          } else {
+            uploadErrorMessage = errMsg || '업로드에 실패했어요. 다시 시도해 주세요.';
+          }
         }
       } catch (e) {
-        console.warn('Cloud upload failed, using local canvas preview:', e);
+        if (e.name === 'AbortError') return;
+        console.warn('Upload request failed:', e);
+        uploadErrorMessage = e.message || '업로드에 실패했어요. 다시 시도해 주세요.';
       }
 
       if (run !== state.runId) return;
+
+      if (!data || !data.qr) {
+        const errBox = $('#uploadErrorBox');
+        const errMsg = $('#uploadErrorMsg');
+        if (errBox) errBox.removeAttribute('hidden');
+        if (errMsg) errMsg.textContent = uploadErrorMessage || '업로드에 실패했어요. 다시 시도해 주세요.';
+        return;
+      }
 
       // Stage 3: QR Preparation & Direct Download
       setStage(3);
@@ -2826,51 +2845,11 @@
       const previewQr = $('#previewQr');
       const directDl = $('#directDownload');
 
-      if (data && data.qr) {
-        if (qrImg) qrImg.src = data.qr;
-        if (previewQr) previewQr.src = data.qr;
-        if (directDl) {
-          directDl.href = localBlobUrl;
-          directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
-        }
-      } else {
-        // Failover: Try client-side direct CDN upload (Zero-login Android bypass via catbox.moe)
-        let clientCdnUrl = null;
-        try {
-          const cdnForm = new FormData();
-          cdnForm.append('reqtype', 'fileupload');
-          cdnForm.append('fileToUpload', blob, 'maeum-fourcuts.jpg');
-          const cRes = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: cdnForm });
-          if (cRes.ok) {
-            clientCdnUrl = (await cRes.text()).trim();
-          }
-        } catch (e) {
-          console.warn('Client direct CDN upload error:', e);
-        }
-
-        const fallbackPhotoId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `photo-${Date.now()}`;
-        // By setting the target directly to the image URL, we bypass Vercel Auth entirely for Android QR scans!
-        const targetUrl = clientCdnUrl ? clientCdnUrl : location.origin;
-
-        if (window.QRCode && (qrImg || previewQr)) {
-          try {
-            const qrDataUrl = await window.QRCode.toDataURL(targetUrl, {
-              width: 440,
-              margin: 2,
-              color: { dark: '#121016', light: '#FFFFFF' }
-            });
-            if (qrImg) qrImg.src = qrDataUrl;
-            if (previewQr) previewQr.src = qrDataUrl;
-          } catch {
-            const fallbackSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(targetUrl)}`;
-            if (qrImg) qrImg.src = fallbackSrc;
-            if (previewQr) previewQr.src = fallbackSrc;
-          }
-        }
-        if (directDl) {
-          directDl.href = localBlobUrl;
-          directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
-        }
+      if (qrImg) qrImg.src = data.qr;
+      if (previewQr) previewQr.src = data.qr;
+      if (directDl) {
+        directDl.href = localBlobUrl;
+        directDl.setAttribute('download', `ichon-20th-fourcuts-${Date.now()}.jpg`);
       }
 
       // Fast-Lane: Proceed to Dedicated Print Preview Screen (Section 23)

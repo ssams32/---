@@ -45,55 +45,27 @@ test('executeCompletionWorkflow references #previewQr element', () => {
 });
 
 test('#previewQr is set in data.qr response path', () => {
-  const dataQrMarker = 'if (data && data.qr)';
-  const dataQrStart = workflowBody.indexOf(dataQrMarker);
-  assert.ok(dataQrStart !== -1, 'if (data && data.qr) branch not found');
-  const elseMarker = '} else {';
-  const dataQrEnd = workflowBody.indexOf(elseMarker, dataQrStart);
-  assert.ok(dataQrEnd !== -1, 'else branch marker not found after data.qr check');
-
-  const branch = workflowBody.slice(dataQrStart, dataQrEnd);
   assert.ok(
-    /(?:previewQr|previewQrImg)\.src\s*=\s*data\.qr/.test(branch) ||
-    /setQrSrc\s*\(\s*data\.qr\s*\)/.test(branch),
+    /(?:previewQr|previewQrImg)\.src\s*=\s*data\.qr/.test(workflowBody),
     '#previewQr must receive data.qr when server returns data.qr'
   );
 });
 
-test('#previewQr is set in QRCode.toDataURL fallback path', () => {
-  const elseMarker = '} else {';
-  const elseStart = workflowBody.indexOf(elseMarker);
-  assert.ok(elseStart !== -1, 'else branch not found');
-  const elseBranch = workflowBody.slice(elseStart);
-
+test('upload failure shows #uploadErrorBox without external fallback', () => {
   assert.ok(
-    elseBranch.includes('toDataURL'),
-    'fallback must attempt window.QRCode.toDataURL'
+    workflowBody.includes('#uploadErrorBox'),
+    'failure path must display #uploadErrorBox'
   );
-
   assert.ok(
-    /(?:previewQr|previewQrImg)\.src\s*=\s*qrDataUrl/.test(elseBranch) ||
-    /setQrSrc\s*\(\s*qrDataUrl\s*\)/.test(elseBranch),
-    '#previewQr must receive qrDataUrl on successful toDataURL generation'
+    !workflowBody.includes('catbox.moe') && !workflowBody.includes('api.qrserver.com'),
+    'external upload and QR fallbacks must be completely removed'
   );
 });
 
-test('#previewQr is set in qrserver fallback catch path', () => {
-  const elseMarker = '} else {';
-  const elseStart = workflowBody.indexOf(elseMarker);
-  assert.ok(elseStart !== -1, 'else branch not found');
-  const elseBranch = workflowBody.slice(elseStart);
-
+test('upload 403 activation error guides user to /activate', () => {
   assert.ok(
-    elseBranch.includes('api.qrserver.com'),
-    'fallback catch must invoke api.qrserver.com'
-  );
-
-  const catchBlock = elseBranch.slice(elseBranch.indexOf('catch'));
-  assert.ok(
-    /(?:previewQr|previewQrImg)\.src\s*=/.test(catchBlock) ||
-    /setQrSrc\s*\(/.test(catchBlock),
-    '#previewQr must receive qrserver fallback URL inside catch block'
+    workflowBody.includes('/activate 페이지에서 기기 활성화가 필요합니다'),
+    'upload 403 activation error must guide user to /activate'
   );
 });
 

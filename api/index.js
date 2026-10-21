@@ -16,9 +16,28 @@ function eventActive(){const now=Date.now();return now>=cfg.eventActiveFrom.getT
 function validUuid(v){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v||'');}
 async function limit(limiter,key,res){const x=await limiter.limit(key);res.set('RateLimit-Limit',String(x.limit));res.set('RateLimit-Remaining',String(x.remaining));res.set('RateLimit-Reset',String(x.reset));if(x.success)return true;res.set('Retry-After',String(Math.max(1,Math.ceil((x.reset-Date.now())/1000))));res.status(429).json({error:'요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'});return false;}
 function kioskRequired(req,res,next){if(!verifyKioskCookie(cfg.sessionSecret,cookies(req).pb_kiosk))return res.status(403).json({error:'이 iPad는 행사 기기로 활성화되지 않았습니다.'});next();}
-function adminRequired(req,res,next){const admin=verifyAdminCookie(cfg.adminSecret,cookies(req).pb_admin);if(!admin)return res.status(401).json({error:'관리자 로그인이 필요합니다.'});req.admin=admin;next();}
+function adminRequired(req,res,next){
+  if(!cfg.adminPassword||!cfg.adminSecret)return res.status(503).json({error:'관리자 인증이 설정되지 않았습니다.'});
+  const admin=verifyAdminCookie(cfg.adminSecret,cookies(req).pb_admin);
+  if(!admin)return res.status(401).json({error:'관리자 로그인이 필요합니다.'});
+  if(['POST','PUT','PATCH','DELETE'].includes(req.method)){
+    const csrf=req.get('x-csrf-token')||'';
+    if(!safeEqual(csrf,admin.csrf))return res.status(403).json({error:'관리자 CSRF 토큰이 유효하지 않습니다.'});
+  }
+  req.admin=admin;
+  next();
+}
 function bearer(req){const h=String(req.get('authorization')||'');return h.startsWith('Bearer ')?h.slice(7):'';}
 function downloadRequired(req,res,next){const session=cookies(req).pb_download;if(!validUuid(req.params.id)||!verifyDownloadSession(cfg.downloadSecret,session,req.params.id))return res.status(404).json({error:'유효하지 않거나 만료된 사진 세션입니다.'});next();}
+
+function isRealSupabase(){
+  return !(
+    process.env.LOCAL_MOCK==='true'||
+    cfg.supabaseUrl.includes('YOUR_PROJECT')||
+    cfg.supabaseUrl.includes('dummy')||
+    !cfg.supabaseUrl.startsWith('https://')
+  );
+}
 
 const DEFAULT_ADMIN_CONFIG={
   centerName:'마음건강복지센터',
@@ -32,6 +51,27 @@ const DEFAULT_ADMIN_CONFIG={
 };
 
 async function getStoredAdminConfig(){
+  if(isRealSupabase()){
+    try{
+      const {supabase}=getClients();
+      const {data,error}=await supabase
+        .from('admin_config')
+        .select('value')
+        .eq('key','fourcuts:admin:config')
+        .maybeSingle();
+      if(error){
+        log.warn('Failed to read admin_config from supabase:',error);
+        return DEFAULT_ADMIN_CONFIG;
+      }
+      if(data&&data.value){
+        return typeof data.value==='string'?JSON.parse(data.value):data.value;
+      }
+      return DEFAULT_ADMIN_CONFIG;
+    }catch(err){
+      log.warn('Error reading admin_config from supabase:',err);
+      return DEFAULT_ADMIN_CONFIG;
+    }
+  }
   try{
     const {redis}=getClients();
     const data=await redis.get('fourcuts:admin:config');
@@ -40,6 +80,22 @@ async function getStoredAdminConfig(){
   }catch{
     return DEFAULT_ADMIN_CONFIG;
   }
+}
+
+async function saveStoredAdminConfig(config){
+  if(isRealSupabase()){
+    const {supabase}=getClients();
+    const {error}=await supabase
+      .from('admin_config')
+      .upsert({key:'fourcuts:admin:config',value:config,updated_at:new Date().toISOString()},{onConflict:'key'});
+    if(error){
+      log.warn('Failed to save admin_config to supabase:',error);
+      throw error;
+    }
+    return;
+  }
+  const {redis}=getClients();
+  await redis.set('fourcuts:admin:config',JSON.stringify(config));
 }
 
 app.get('/manifest.json',(req,res)=>{
@@ -76,10 +132,13 @@ app.get('/dev/filter-lab',(req,res)=>{
 
 app.post('/api/admin/login',async(req,res,next)=>{
   try{
+    if(!cfg.adminPassword||!cfg.adminSecret){
+      return res.status(503).json({error:'관리자 인증이 설정되지 않았습니다.'});
+    }
     const {adminLimit}=getClients();
     if(!await limit(adminLimit,`admin:${clientKey(req)}`,res))return;
     const password=String(req.body?.password||'');
-    if(!safeEqual(password,cfg.adminPassword)&&!safeEqual(password,cfg.kioskActivationSecret)) {
+    if(!safeEqual(password,cfg.adminPassword)) {
       return res.status(403).json({error:'관리자 비밀번호가 올바르지 않습니다.'});
     }
     const adminSession=createAdminCookie(cfg.adminSecret,28800);
@@ -94,8 +153,8 @@ app.post('/api/admin/logout',(req,res)=>{
 });
 
 app.get('/api/admin/check',async(req,res)=>{
-  const admin=verifyAdminCookie(cfg.adminSecret,cookies(req).pb_admin);
-  res.json({authenticated:!!admin,eventActive:eventActive()});
+  const admin=cfg.adminSecret?verifyAdminCookie(cfg.adminSecret,cookies(req).pb_admin):null;
+  res.json({authenticated:!!admin,csrf:admin?admin.csrf:null,eventActive:eventActive()});
 });
 
 app.get('/api/admin/config',adminRequired,async(req,res,next)=>{
@@ -107,7 +166,6 @@ app.get('/api/admin/config',adminRequired,async(req,res,next)=>{
 
 app.post('/api/admin/config',adminRequired,async(req,res,next)=>{
   try{
-    const {redis}=getClients();
     const newConfig=req.body?.config;
     if(!newConfig||typeof newConfig!=='object')return res.status(400).json({error:'유효하지 않은 설정 데이터입니다.'});
     const current=await getStoredAdminConfig();
@@ -116,7 +174,7 @@ app.post('/api/admin/config',adminRequired,async(req,res,next)=>{
       ...newConfig,
       customBackgrounds:Array.isArray(newConfig.customBackgrounds)?newConfig.customBackgrounds:current.customBackgrounds
     };
-    await redis.set('fourcuts:admin:config',JSON.stringify(merged));
+    await saveStoredAdminConfig(merged);
     res.json({ok:true,config:merged});
   }catch(e){next(e);}
 });
@@ -128,7 +186,7 @@ app.post('/api/admin/backgrounds',adminRequired,uploadBg.single('background'),as
     const normalized=await validateAndNormalizeBackground(req.file.buffer);
     const bgId=crypto.randomUUID();
     const storagePath=`backgrounds/${bgId}.${normalized.format}`;
-    const {supabase,redis}=getClients();
+    const {supabase}=getClients();
     
     let publicUrl='';
     const stored=await supabase.storage.from(cfg.bucket).upload(storagePath,normalized.buffer,{contentType:`image/${normalized.format}`,upsert:true});
@@ -154,7 +212,7 @@ app.post('/api/admin/backgrounds',adminRequired,uploadBg.single('background'),as
     const current=await getStoredAdminConfig();
     current.customBackgrounds=(current.customBackgrounds||[]).filter((x)=>x.id!==bgId);
     current.customBackgrounds.unshift(item);
-    await redis.set('fourcuts:admin:config',JSON.stringify(current));
+    await saveStoredAdminConfig(current);
 
     res.status(201).json({ok:true,background:item});
   }catch(e){next(e);}
@@ -171,8 +229,7 @@ app.delete('/api/admin/backgrounds/:id',adminRequired,async(req,res,next)=>{
       try{await supabase.storage.from(cfg.bucket).remove([target.storagePath]);}catch{}
     }
     current.customBackgrounds=(current.customBackgrounds||[]).filter((x)=>x.id!==id);
-    const {redis}=getClients();
-    await redis.set('fourcuts:admin:config',JSON.stringify(current));
+    await saveStoredAdminConfig(current);
     res.json({ok:true});
   }catch(e){next(e);}
 });
@@ -222,15 +279,11 @@ app.get('/api/session',async(req,res,next)=>{
     if(!await limit(sessionIpLimit,`session:${clientKey(req)}`,res))return;
     const s=createSession(cfg.sessionSecret,900);
     setCookie(res,'pb_session',s.cookie,s.expiresIn);
-    // Auto-grant kiosk cookie if not present
-    if(!cookies(req).pb_kiosk){
-      setCookie(res,'pb_kiosk',createKioskCookie(cfg.sessionSecret,86400),86400);
-    }
     res.json({csrfToken:s.csrf,expiresIn:s.expiresIn});
   }catch(e){next(e);}
 });
 
-app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
+app.post('/api/photos',kioskRequired,upload.single('photo'),async(req,res,next)=>{
   let reservationKey,photoId,storagePath,dbCreated=false;
   try{
     if(!eventActive())return res.status(403).json({error:'현재는 행사 운영 시간이 아닙니다.'});
@@ -254,26 +307,6 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     if(stored.error)throw stored.error;
     const ready=await supabase.from('photo_downloads').update({status:'ready'}).eq('photo_id',photoId).eq('status','pending').select('photo_id').maybeSingle();
     if(ready.error)throw ready.error;
-    let cdnUrl = null;
-    try {
-      const cdnForm = new FormData();
-      cdnForm.append('key', '6d207e02198a847aa98d0a2a901485a5');
-      cdnForm.append('action', 'upload');
-      cdnForm.append('source', normalized.toString('base64'));
-      cdnForm.append('format', 'json');
-
-      const cdnRes = await fetch('https://freeimage.host/api/1/upload', {
-        method: 'POST',
-        body: cdnForm,
-        signal: AbortSignal.timeout(6000)
-      });
-      if (cdnRes.ok) {
-        const cdnData = await cdnRes.json();
-        cdnUrl = cdnData?.image?.url || null;
-      }
-    } catch (cdnErr) {
-      console.warn('Free CDN upload fallback:', cdnErr.message);
-    }
 
     const token=createDownloadToken(cfg.downloadSecret,photoId,expiresAt);
     const proto=req.get('x-forwarded-proto')||(req.secure?'https':'http');
@@ -287,7 +320,7 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     await release(redis,reservationKey,req.requestId);
     reservationKey=null;
     log.info('photo_created',{requestId:req.requestId,photoRef:hmacRef(cfg.rateLimitHashSecret,photoId,12),bytes:normalized.length});
-    res.status(201).json({photoId,pageUrl,qr,expiresAt,cdnUrl});
+    res.status(201).json({photoId,pageUrl,qr,expiresAt});
   }catch(e){
     const {supabase,redis}=getClients();
     if(storagePath){try{await supabase.storage.from(cfg.bucket).remove([storagePath]);}catch{}}

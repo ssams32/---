@@ -7,7 +7,14 @@ function originGuard(req,res,next){
   const origin=String(req.get('origin')||'').replace(/\/$/,'');
   if(!origin)return next();
   const cfg=getConfig();
-  if(cfg.allowedOrigins.includes(origin)||origin.endsWith('.vercel.app')||origin.includes('localhost')||origin.includes('127.0.0.1'))return next();
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+  if(isProduction){
+    if(cfg.allowedOrigins.includes(origin))return next();
+  }else{
+    let isLocal=false;
+    try{const u=new URL(origin);isLocal=(u.hostname==='localhost'||u.hostname==='127.0.0.1');}catch{}
+    if(cfg.allowedOrigins.includes(origin)||isLocal||origin.includes('localhost')||origin.includes('127.0.0.1'))return next();
+  }
   return res.status(403).json({error:'허용되지 않은 요청 출처입니다.'});
 }
 function securityHeaders(){

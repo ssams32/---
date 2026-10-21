@@ -45,16 +45,70 @@ function createMockRedis() {
 /**
  * 인메모리 레이트리밋 심 팩토리
  * - Ratelimit.slidingWindow 인터페이스 모방
- * - 항상 성공 반환(limit: 100, remaining: 99)
+ * - max, windowMs 인자 미제공 시: 기존 무제한 목업(limit: 100, remaining: 99) 반환 (로컬·테스트 전용)
+ * - max, windowMs 인자 제공 시: 키별 타임스탬프 기반 슬라이딩 윈도우 구현
+ *   {success, limit, remaining, reset} 반환 (reset은 밀리초 epoch)
+ *   만료 키는 주기적으로 정리하여 메모리 누수 방지
  */
-function createMockLimiter() {
+function createMockLimiter(max, windowMs) {
+  if (!max || !windowMs) {
+    return {
+      limit: async () => ({
+        success: true,
+        limit: 100,
+        remaining: 99,
+        reset: Date.now() + 60000
+      })
+    };
+  }
+
+  const hits = new Map();
+  let lastCleanup = Date.now();
+
+  function cleanup(now) {
+    if (now - lastCleanup < Math.min(windowMs, 30000)) return;
+    lastCleanup = now;
+    const cutoff = now - windowMs;
+    for (const [k, timestamps] of hits.entries()) {
+      const valid = timestamps.filter(t => t > cutoff);
+      if (valid.length === 0) {
+        hits.delete(k);
+      } else {
+        hits.set(k, valid);
+      }
+    }
+  }
+
   return {
-    limit: async () => ({
-      success: true,
-      limit: 100,
-      remaining: 99,
-      reset: Date.now() + 60000
-    })
+    limit: async (key) => {
+      const now = Date.now();
+      cleanup(now);
+      const cutoff = now - windowMs;
+      const current = hits.get(key) || [];
+      const valid = current.filter(t => t > cutoff);
+
+      if (valid.length >= max) {
+        const reset = valid[0] + windowMs;
+        hits.set(key, valid);
+        return {
+          success: false,
+          limit: max,
+          remaining: 0,
+          reset
+        };
+      }
+
+      valid.push(now);
+      hits.set(key, valid);
+      const reset = valid[0] + windowMs;
+
+      return {
+        success: true,
+        limit: max,
+        remaining: max - valid.length,
+        reset
+      };
+    }
   };
 }
 
@@ -66,9 +120,26 @@ function createMockLimiter() {
 function createMockSupabase() {
   const memoryDb = new Map();
   const memoryStorage = new Map();
+  const configDb = new Map();
 
   return {
     from: (table) => {
+      if (table === 'admin_config') {
+        return {
+          upsert: async (row) => {
+            configDb.set(row.key, { ...row });
+            return { data: row, error: null };
+          },
+          select: (cols) => ({
+            eq: (col, val) => ({
+              maybeSingle: async () => ({
+                data: configDb.get(val) || null,
+                error: null
+              })
+            })
+          })
+        };
+      }
       return {
         insert: async (data) => {
           const row = Array.isArray(data) ? data[0] : data;

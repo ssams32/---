@@ -5,6 +5,7 @@
 
   const state = {
     authenticated: false,
+    csrfToken: null,
     config: { ...window.PHOTO_BOOTH_CONFIG },
     stats: null,
     selectedFile: null
@@ -24,6 +25,7 @@
       const d = await r.json().catch(() => ({}));
       if (d.authenticated) {
         state.authenticated = true;
+        if (d.csrf) state.csrfToken = d.csrf;
         $('#loginModal').hidden = true;
         $('#adminApp').hidden = false;
         await loadConfig();
@@ -51,6 +53,7 @@
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || '로그인에 실패했습니다.');
+      if (d.csrf) state.csrfToken = d.csrf;
       showToast('성공적으로 로그인되었습니다.');
       await checkAuth();
     } catch (e) {
@@ -63,8 +66,11 @@
 
   async function logout() {
     try {
-      await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
+      const headers = {};
+      if (state.csrfToken) headers['x-csrf-token'] = state.csrfToken;
+      await fetch('/api/admin/logout', { method: 'POST', headers, credentials: 'same-origin' });
     } catch {}
+    state.csrfToken = null;
     location.reload();
   }
 
@@ -84,9 +90,11 @@
   async function saveConfig(partial) {
     try {
       const updated = { ...state.config, ...partial };
+      const headers = { 'Content-Type': 'application/json' };
+      if (state.csrfToken) headers['x-csrf-token'] = state.csrfToken;
       const r = await fetch('/api/admin/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'same-origin',
         body: JSON.stringify({ config: updated })
       });
@@ -213,8 +221,12 @@
       form.append('background', file);
       form.append('name', name);
 
+      const headers = {};
+      if (state.csrfToken) headers['x-csrf-token'] = state.csrfToken;
+
       const r = await fetch('/api/admin/backgrounds', {
         method: 'POST',
+        headers,
         body: form,
         credentials: 'same-origin'
       });
@@ -238,8 +250,12 @@
   async function deleteBackground(id) {
     if (!confirm('정말 이 커스텀 배경을 삭제하시겠습니까?')) return;
     try {
+      const headers = {};
+      if (state.csrfToken) headers['x-csrf-token'] = state.csrfToken;
+
       const r = await fetch(`/api/admin/backgrounds/${encodeURIComponent(id)}`, {
         method: 'DELETE',
+        headers,
         credentials: 'same-origin'
       });
       if (!r.ok) throw new Error('삭제 실패');
@@ -342,7 +358,9 @@
     btn.textContent = '정리 실행 중...';
     const resBox = $('#cleanupResult');
     try {
-      const r = await fetch('/api/admin/cleanup', { method: 'POST', credentials: 'same-origin' });
+      const headers = {};
+      if (state.csrfToken) headers['x-csrf-token'] = state.csrfToken;
+      const r = await fetch('/api/admin/cleanup', { method: 'POST', headers, credentials: 'same-origin' });
       const d = await r.json().catch(() => ({}));
       resBox.hidden = false;
       resBox.textContent = `정리 완료: 만료 파일 ${d.removed || 0}건 삭제 성공 (실패 ${d.failures || 0}건)`;

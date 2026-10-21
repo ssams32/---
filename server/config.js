@@ -4,8 +4,15 @@ function optional(name, fallback = '') {
   return process.env[name] || fallback;
 }
 
-function secret(name, fallback, min = 32) {
-  const value = process.env[name] || fallback;
+function secret(name, fallback, min = 32, isProduction = false) {
+  const envVal = process.env[name];
+  if (isProduction) {
+    if (!envVal || Buffer.byteLength(envVal, 'utf8') < min) {
+      throw new Error(`Production requires environment variable ${name} with at least ${min} bytes`);
+    }
+    return envVal;
+  }
+  const value = envVal || fallback;
   if (!value || Buffer.byteLength(value, 'utf8') < min) {
     return crypto.randomBytes(32).toString('hex');
   }
@@ -21,6 +28,7 @@ function integer(name, fallback, min, max) {
 }
 
 function config() {
+  const isProduction = process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
   const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL.trim()}` : '';
   const publicUrl = (process.env.PUBLIC_URL || vercelUrl || 'http://localhost:3000').trim().replace(/\/$/, '');
   const allowedOrigins = (process.env.ALLOWED_ORIGINS || publicUrl)
@@ -46,17 +54,17 @@ function config() {
     photoTtlMinutes: integer('PHOTO_TTL_MINUTES', 60, 5, 1440),
     signedUrlTtlSeconds: integer('SIGNED_URL_TTL_SECONDS', 180, 30, 600),
     publicUrl,
-    sessionSecret: secret('SESSION_SECRET', defaultSecret + '-session'),
-    downloadSecret: secret('DOWNLOAD_TOKEN_SECRET', defaultSecret + '-download'),
-    kioskActivationSecret: secret('KIOSK_ACTIVATION_SECRET', 'kiosk-secret-key-2026', 8),
-    rateLimitHashSecret: secret('RATE_LIMIT_HASH_SECRET', defaultSecret + '-ratelimit'),
+    sessionSecret: secret('SESSION_SECRET', defaultSecret + '-session', 32, isProduction),
+    downloadSecret: secret('DOWNLOAD_TOKEN_SECRET', defaultSecret + '-download', 32, isProduction),
+    kioskActivationSecret: secret('KIOSK_ACTIVATION_SECRET', 'kiosk-secret-key-2026', 8, isProduction),
+    rateLimitHashSecret: secret('RATE_LIMIT_HASH_SECRET', defaultSecret + '-ratelimit', 32, isProduction),
     eventActiveFrom: from,
     eventActiveUntil: until,
-    cronSecret: secret('CRON_SECRET', 'cron-cleanup-secret-key-16', 16),
+    cronSecret: secret('CRON_SECRET', 'cron-cleanup-secret-key-16', 16, isProduction),
     allowedOrigins,
-    adminSecret: process.env.ADMIN_SECRET ? secret('ADMIN_SECRET', defaultSecret + '-admin', 16) : secret('KIOSK_ACTIVATION_SECRET', 'kiosk-secret-key-2026', 16),
-    adminPassword: process.env.ADMIN_PASSWORD || 'admin2026!',
-    production: publicUrl.startsWith('https://'),
+    adminSecret: process.env.ADMIN_SECRET ? secret('ADMIN_SECRET', 'admin-secret-key-2026-for-admin-session', 16, isProduction) : null,
+    adminPassword: process.env.ADMIN_PASSWORD || null,
+    production: isProduction || publicUrl.startsWith('https://'),
     maxUploadBytes: 4 * 1024 * 1024,
     maxBackgroundUploadBytes: 8 * 1024 * 1024
   });

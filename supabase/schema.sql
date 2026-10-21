@@ -6,7 +6,6 @@ create table if not exists public.photo_downloads (
   storage_path text not null unique,
   status text not null default 'pending'
 );
-alter table public.photo_downloads add column if not exists status text not null default 'pending';
 alter table public.photo_downloads drop constraint if exists photo_expiry_after_creation;
 alter table public.photo_downloads add constraint photo_expiry_after_creation check (expires_at > created_at);
 alter table public.photo_downloads drop constraint if exists photo_status_allowed;
@@ -18,4 +17,14 @@ create index if not exists photo_downloads_pending_idx on public.photo_downloads
 alter table public.photo_downloads enable row level security;
 alter table public.photo_downloads force row level security;
 revoke all on table public.photo_downloads from anon,authenticated;
-insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('photo-booth-private','photo-booth-private',false,4194304,array['image/jpeg']) on conflict(id) do update set public=false,file_size_limit=4194304,allowed_mime_types=array['image/jpeg'];
+
+create table if not exists public.admin_config (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.admin_config enable row level security;
+alter table public.admin_config force row level security;
+revoke all on table public.admin_config from anon,authenticated;
+
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('photo-booth-private','photo-booth-private',false,8388608,array['image/jpeg','image/png']) on conflict(id) do update set public=false,file_size_limit=8388608,allowed_mime_types=array['image/jpeg','image/png'];

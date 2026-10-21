@@ -13,6 +13,7 @@ let clients;
 function createLocalMockClients(cfg) {
   const mockSupabase = createMockSupabase();
   const mockRedis = createMockRedis();
+  // 전체 목업 모드(LOCAL_MOCK): 로컬 개발 및 테스트 전용 무제한 리미터 유지
   const mockLimiter = createMockLimiter();
 
   return {
@@ -65,18 +66,17 @@ function getClients() {
     return clients;
   }
 
-  // 3) Supabase real + Redis dummy → 하이브리드 모드 (신규)
+  // 3) Supabase real + Redis dummy → 하이브리드 모드
   console.log('[Info] 하이브리드 모드: Supabase 실연결 + Redis/레이트리밋 인메모리 심');
   const mockRedis = createMockRedis();
-  const mockLimiter = createMockLimiter();
   clients = {
     supabase: createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } }),
     redis: mockRedis,
-    activationLimit: mockLimiter,
-    adminLimit: mockLimiter,
-    sessionIpLimit: mockLimiter,
-    uploadIpLimit: mockLimiter,
-    sessionLimit: mockLimiter
+    activationLimit: createMockLimiter(10, 10 * 60 * 1000),
+    adminLimit: createMockLimiter(15, 10 * 60 * 1000),
+    sessionIpLimit: createMockLimiter(300, 10 * 60 * 1000),
+    uploadIpLimit: createMockLimiter(150, 10 * 60 * 1000),
+    sessionLimit: createMockLimiter(2, 15 * 60 * 1000)
   };
   return clients;
 }
