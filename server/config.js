@@ -56,7 +56,6 @@ function config() {
     publicUrl,
     sessionSecret: secret('SESSION_SECRET', defaultSecret + '-session', 32, isProduction),
     downloadSecret: secret('DOWNLOAD_TOKEN_SECRET', defaultSecret + '-download', 32, isProduction),
-    kioskActivationSecret: secret('KIOSK_ACTIVATION_SECRET', 'kiosk-secret-key-2026', 8, isProduction),
     rateLimitHashSecret: secret('RATE_LIMIT_HASH_SECRET', defaultSecret + '-ratelimit', 32, isProduction),
     eventActiveFrom: from,
     eventActiveUntil: until,

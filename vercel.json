@@ -8,7 +8,6 @@
     }
   },
   "rewrites": [
-    { "source": "/activate", "destination": "/api/index.js" },
     { "source": "/admin", "destination": "/api/index.js" },
     { "source": "/dev/filter-lab", "destination": "/api/index.js" },
     { "source": "/api/:path*", "destination": "/api/index.js" },

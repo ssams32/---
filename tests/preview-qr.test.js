@@ -62,10 +62,10 @@ test('upload failure shows #uploadErrorBox without external fallback', () => {
   );
 });
 
-test('upload 403 activation error guides user to /activate', () => {
+test('no activation guidance remains (activation feature removed)', () => {
   assert.ok(
-    workflowBody.includes('/activate 페이지에서 기기 활성화가 필요합니다'),
-    'upload 403 activation error must guide user to /activate'
+    !workflowBody.includes('/activate 페이지에서 기기 활성화가 필요합니다'),
+    'activation guidance must be removed together with the activation feature'
   );
 });
 

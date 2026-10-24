@@ -1,6 +1,6 @@
 const express=require('express');const multer=require('multer');const QRCode=require('qrcode');const crypto=require('crypto');const path=require('path');const fs=require('fs');
 const {getConfig}=require('../server/config');const {getClients}=require('../server/clients');
-const {createSession,verifySession,createKioskCookie,verifyKioskCookie,createAdminCookie,verifyAdminCookie,createDownloadToken,parseDownloadToken,createDownloadSession,verifyDownloadSession,safeEqual,hmacRef}=require('../server/crypto');
+const {createSession,verifySession,createAdminCookie,verifyAdminCookie,createDownloadToken,parseDownloadToken,createDownloadSession,verifyDownloadSession,safeEqual,hmacRef}=require('../server/crypto');
 const {cookieMap,clientKey,originGuard,securityHeaders}=require('../server/security');const {validateAndNormalizeJpeg,validateAndNormalizeBackground}=require('../server/image');const {acquire,release}=require('../server/lock');const log=require('../server/logger');
 const cfg=getConfig(),app=express();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:cfg.maxUploadBytes,files:1,fields:0}});
@@ -15,7 +15,6 @@ function clearCookie(res,name){res.append('Set-Cookie',`${name}=; Path=/; HttpOn
 function eventActive(){const now=Date.now();return now>=cfg.eventActiveFrom.getTime()&&now<=cfg.eventActiveUntil.getTime();}
 function validUuid(v){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v||'');}
 async function limit(limiter,key,res){const x=await limiter.limit(key);res.set('RateLimit-Limit',String(x.limit));res.set('RateLimit-Remaining',String(x.remaining));res.set('RateLimit-Reset',String(x.reset));if(x.success)return true;res.set('Retry-After',String(Math.max(1,Math.ceil((x.reset-Date.now())/1000))));res.status(429).json({error:'요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'});return false;}
-function kioskRequired(req,res,next){if(!verifyKioskCookie(cfg.sessionSecret,cookies(req).pb_kiosk))return res.status(403).json({error:'이 iPad는 행사 기기로 활성화되지 않았습니다.'});next();}
 function adminRequired(req,res,next){
   if(!cfg.adminPassword||!cfg.adminSecret)return res.status(503).json({error:'관리자 인증이 설정되지 않았습니다.'});
   const admin=verifyAdminCookie(cfg.adminSecret,cookies(req).pb_admin);
@@ -260,18 +259,6 @@ app.get('/api/public-config',async(req,res,next)=>{
   }catch(e){next(e);}
 });
 
-app.get('/activate',(req,res)=>res.type('html').send('<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>행사 기기 활성화</title><link rel="stylesheet" href="/download.css"></head><body><main class="download-card"><h1>행사 기기 활성화</h1><p id="status">운영자 전용 활성화 코드를 입력하세요.</p><input id="code" type="password" autocomplete="off" aria-label="활성화 코드"><div class="download-actions"><button id="activate">활성화</button></div></main><script src="/activate.js"></script></body></html>'));
-
-app.post('/api/kiosk/activate',async(req,res,next)=>{
-  try{
-    const {activationLimit}=getClients();
-    if(!await limit(activationLimit,clientKey(req),res))return;
-    if(!safeEqual(req.body?.code||'',cfg.kioskActivationSecret))return res.status(403).json({error:'활성화 코드가 올바르지 않습니다.'});
-    setCookie(res,'pb_kiosk',createKioskCookie(cfg.sessionSecret,86400),86400);
-    res.json({ok:true});
-  }catch(e){next(e);}
-});
-
 app.get('/api/session',async(req,res,next)=>{
   try{
     if(!eventActive())return res.status(403).json({error:'현재는 행사 운영 시간이 아닙니다.'});
@@ -283,7 +270,7 @@ app.get('/api/session',async(req,res,next)=>{
   }catch(e){next(e);}
 });
 
-app.post('/api/photos',kioskRequired,upload.single('photo'),async(req,res,next)=>{
+app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
   let reservationKey,photoId,storagePath,dbCreated=false;
   try{
     if(!eventActive())return res.status(403).json({error:'현재는 행사 운영 시간이 아닙니다.'});

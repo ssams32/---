@@ -2811,11 +2811,7 @@
         } else {
           const errData = await res.json().catch(() => ({}));
           const errMsg = errData.error || '';
-          if (res.status === 403 && typeof errMsg === 'string' && errMsg.includes('활성화')) {
-            uploadErrorMessage = '/activate 페이지에서 기기 활성화가 필요합니다.';
-          } else {
-            uploadErrorMessage = errMsg || '업로드에 실패했어요. 다시 시도해 주세요.';
-          }
+          uploadErrorMessage = errMsg || '업로드에 실패했어요. 다시 시도해 주세요.';
         }
       } catch (e) {
         if (e.name === 'AbortError') return;

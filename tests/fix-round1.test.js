@@ -2,7 +2,7 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 const { createMockLimiter } = require('../server/mock-factories');
-const { createKioskCookie, createAdminCookie, createSession } = require('../server/crypto');
+const { createAdminCookie, createSession } = require('../server/crypto');
 
 function startTestServer(app) {
   return new Promise((resolve) => {
@@ -106,26 +106,30 @@ describe('F-4: 키오스크 세션 자동발급 제거 및 업로드 가드', ()
     assert.ok(!cookies.includes('pb_kiosk='), 'pb_kiosk는 절대 자동 발급되지 않아야 함');
   });
 
-  test('미활성화 기기에서 POST /api/photos 요청 시 403 반환', async () => {
+  test('활성화 없이도 POST /api/photos 업로드 가능 (활성화 기능 제거됨)', async () => {
     const sessionRes = await fetch(`${appServer.base}/api/session`);
     const sessionCookie = (sessionRes.headers.get('set-cookie') || '').split(';')[0];
     const { csrfToken } = await sessionRes.json();
 
+    const sharp = require('sharp');
+    const jpeg = await sharp({
+      create: { width: 1200, height: 1360, channels: 3, background: { r: 140, g: 170, b: 220 } }
+    }).jpeg({ quality: 85 }).toBuffer();
     const form = new FormData();
-    form.append('photo', new Blob([Buffer.from([0xff, 0xd8, 0xff, 0xe0])], { type: 'image/jpeg' }), 'photo.jpg');
+    form.append('photo', new Blob([jpeg], { type: 'image/jpeg' }), 'photo.jpg');
 
     const res = await fetch(`${appServer.base}/api/photos`, {
       method: 'POST',
       headers: {
-        cookie: sessionCookie, // pb_kiosk 없음!
+        cookie: sessionCookie,
         'x-csrf-token': csrfToken
       },
       body: form
     });
 
-    assert.equal(res.status, 403);
+    assert.equal(res.status, 201);
     const body = await res.json();
-    assert.match(body.error, /행사 기기로 활성화되지 않았습니다/);
+    assert.ok(body.photoId, 'photoId가 발급되어야 함');
   });
 
   test('서버 종료', async () => {

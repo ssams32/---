@@ -37,26 +37,14 @@ test('no-login direct download returns the uploaded JPEG', { timeout: 60000 }, a
   t.after(() => proc.kill('SIGKILL'));
   await waitForServer(proc);
 
-  // 0. Activate kiosk device
-  const activateRes = await fetch(`${BASE}/api/kiosk/activate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: 'kiosk-secret-key-2026' })
-  });
-  assert.equal(activateRes.status, 200, 'kiosk activation must succeed');
-  const kioskCookie = activateRes.headers.get('set-cookie');
-  assert.ok(kioskCookie, 'kiosk activation must issue pb_kiosk cookie');
-
   // 1. Shooting session (what the kiosk does before uploading)
-  const sessionRes = await fetch(`${BASE}/api/session`, {
-    headers: { cookie: kioskCookie }
-  });
+  const sessionRes = await fetch(`${BASE}/api/session`);
   assert.equal(sessionRes.status, 200);
   const { csrfToken } = await sessionRes.json();
   const sessionCookie = sessionRes.headers.get('set-cookie');
   assert.ok(sessionCookie && csrfToken, 'session must issue cookie + csrf');
 
-  const uploadCookies = `${kioskCookie.split(';')[0]}; ${sessionCookie.split(';')[0]}`;
+  const uploadCookies = sessionCookie.split(';')[0];
 
   // 2. Upload a real JPEG (master-card size)
   const sharp = require('sharp');
