@@ -51,6 +51,54 @@
     } catch {}
   }
 
+  // iOS Safari unlocks Web Audio only inside a user-gesture handler.
+  // The shooting sequence runs on timers, so without an early unlock the
+  // context stays 'suspended' and every beep/click is silently dropped.
+  function unlockAudio() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      if (!window.__boothAudioCtx) window.__boothAudioCtx = new AudioCtx();
+      if (window.__boothAudioCtx.state === 'suspended') {
+        window.__boothAudioCtx.resume().catch(() => {});
+      }
+    } catch {}
+  }
+  window.addEventListener('pointerdown', unlockAudio, { passive: true });
+  window.addEventListener('touchend', unlockAudio, { passive: true });
+  window.addEventListener('click', unlockAudio, { passive: true });
+
+  // Mechanical shutter click: two short filtered noise bursts
+  // (mirror slap + curtain close) instead of a plain sine beep.
+  function playShutter() {
+    try {
+      unlockAudio();
+      const ctx = window.__boothAudioCtx;
+      if (!ctx) return;
+      const dur = 0.09;
+      const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.2);
+      }
+      const click = (when, vol) => {
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'highpass';
+        filter.frequency.value = 1200;
+        const gain = ctx.createGain();
+        gain.gain.value = vol;
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(when);
+      };
+      click(ctx.currentTime, 0.6);
+      click(ctx.currentTime + 0.045, 0.3);
+    } catch {}
+  }
+
   // Load and validate config
   let CFG = window.PHOTO_BOOTH_CONFIG || {};
   const validation = window.validateBoothConfig ? window.validateBoothConfig(CFG) : { valid: true };
@@ -734,7 +782,7 @@
           setTimeout(() => flash.classList.remove('active', 'flash'), 180);
         }
 
-        playBeep(1320, 0.18);
+        playShutter();
         if (cdEl) {
           cdEl.textContent = '📸';
           cdEl.classList.add('pulse');
