@@ -317,7 +317,8 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     if(storagePath){try{await supabase.storage.from(cfg.bucket).remove([storagePath]);}catch{}}
     if(dbCreated&&photoId){try{await supabase.from('photo_downloads').delete().eq('photo_id',photoId);}catch{}}
     if(reservationKey){try{await release(redis,reservationKey,req.requestId);}catch{}}
-    next(e);
+    // TEMP DIAG 2026-11-12: 운영 업로드 500 원인 확인용 — 확인 즉시 되돌림.
+    return res.status(500).json({error:'diag: '+(e&&e.message||e),code:e&&e.code,requestId:req.requestId});
   }
 });
 
