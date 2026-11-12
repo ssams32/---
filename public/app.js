@@ -948,18 +948,17 @@
     updateSelectionBadges();
     updateDestinationMockup();
 
-    // Fast-Lane Auto Transition Trigger
-    if (state.selected.length === 4) {
-      if (isFastLaneMode()) {
-        handleFastLaneFourthSelection();
-      }
-    } else {
-      clearTimeout(state.autoTransitionTimer);
-      const autoBanner = $('#selectionAutoBanner');
-      if (autoBanner) autoBanner.hidden = true;
-    }
+    // 4장을 다 골라도 자동으로 넘어가지 않습니다. 사용자가
+    // "4장 선택 완료" 버튼을 눌러야 다음 단계로 갑니다.
+    // (2026-11-12 현장 보고: 4번째 선택 직후 1.2초 만에 자동
+    //  전환되어 버튼을 누를 틈이 없었음 — 패스트레인 자동 전환 제거)
+    clearTimeout(state.autoTransitionTimer);
+    const autoBanner = $('#selectionAutoBanner');
+    if (autoBanner) autoBanner.hidden = true;
   }
 
+  // 2026-11-12 이후 호출되지 않음: 4번째 선택 시 자동 전환을 없애고
+  // "4장 선택 완료" 버튼 수동 확인으로 바꿨습니다. 되돌릴 때만 다시 연결할 것.
   function handleFastLaneFourthSelection() {
     state.selectionLocked = true;
     const autoBanner = $('#selectionAutoBanner');

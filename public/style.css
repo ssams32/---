@@ -4512,6 +4512,12 @@ main#app {
   animation: bannerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* display:flex가 hidden 속성을 이겨 배너가 항상 보이는 문제 방지
+   (2026-11-12: 1장만 골랐는데도 "4/4 선택 완료" 배너가 떠 있었음) */
+.selection-auto-banner[hidden] {
+  display: none;
+}
+
 .auto-banner-content {
   display: flex;
   align-items: center;

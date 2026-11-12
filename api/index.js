@@ -1,7 +1,7 @@
 const express=require('express');const multer=require('multer');const QRCode=require('qrcode');const crypto=require('crypto');const path=require('path');const fs=require('fs');
 const {getConfig}=require('../server/config');const {getClients}=require('../server/clients');
 const {createSession,verifySession,createAdminCookie,verifyAdminCookie,createDownloadToken,parseDownloadToken,createDownloadSession,verifyDownloadSession,safeEqual,hmacRef}=require('../server/crypto');
-const {cookieMap,clientKey,originGuard,securityHeaders}=require('../server/security');const {validateAndNormalizeJpeg,validateAndNormalizeBackground}=require('../server/image');const {acquire,release}=require('../server/lock');const log=require('../server/logger');
+const {cookieMap,clientKey,originGuard,securityHeaders}=require('../server/security');const {validateAndNormalizeJpeg,validateAndNormalizeBackground}=require('../server/image');const {acquire,release}=require('../server/lock');const log=require('../server/logger');const {backupPhotoQuietly}=require('../server/drive-backup');
 const cfg=getConfig(),app=express();
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:cfg.maxUploadBytes,files:1,fields:0}});
 const uploadBg=multer({storage:multer.memoryStorage(),limits:{fileSize:cfg.maxBackgroundUploadBytes,files:1,fields:2}});
@@ -294,6 +294,10 @@ app.post('/api/photos',upload.single('photo'),async(req,res,next)=>{
     if(stored.error)throw stored.error;
     const ready=await supabase.from('photo_downloads').update({status:'ready'}).eq('photo_id',photoId).eq('status','pending').select('photo_id').maybeSingle();
     if(ready.error)throw ready.error;
+    // Google Drive backup copy to the owner's Drive (no-op unless the
+    // GOOGLE_* env vars are configured). Awaited so a serverless freeze
+    // after the response cannot drop it; failures never fail the flow.
+    await backupPhotoQuietly(normalized, `${photoId}.jpg`);
 
     const token=createDownloadToken(cfg.downloadSecret,photoId,expiresAt);
     const proto=req.get('x-forwarded-proto')||(req.secure?'https':'http');
