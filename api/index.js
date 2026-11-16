@@ -458,7 +458,7 @@ app.use((err,req,res,next)=>{
   log.error('request_failed',{requestId:req.requestId,path:req.path,name:err.name,message:err.message});
   if(err instanceof multer.MulterError)return res.status(err.code==='LIMIT_FILE_SIZE'?413:400).json({error:err.code==='LIMIT_FILE_SIZE'?'사진 파일이 너무 큽니다.':'잘못된 업로드 요청입니다.'});
   const status=Number(err.status)||500;
-  res.status(status).json({error:status<500?err.message:'요청 처리 중 오류가 발생했습니다.',requestId:req.requestId});
+  res.status(status).json({error:err.message,requestId:req.requestId}); // TEMP DIAG 2026-11-16: revert right after diagnosis
 });
 
 module.exports=app;
